@@ -1,0 +1,19 @@
+[project]
+name = "simulation-analysis"
+version = "0.1.0"
+description = "Plotting and result analysis for the MC714 load-balancer simulator"
+requires-python = ">=3.14"
+dependencies = [
+    "matplotlib>=3.10",
+    "pandas>=2.3",
+]
+
+[project.scripts]
+simulation-plots = "simulation_analysis.plots:main"
+
+[build-system]
+requires = ["uv_build>=0.10"]
+build-backend = "uv_build"
+
+[tool.uv]
+package = true
