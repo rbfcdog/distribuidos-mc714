@@ -69,6 +69,7 @@ type Result struct {
 	Duration            float64
 	Throughput          float64
 	AverageResponseTime float64
+	Interarrivals       []float64
 	Servers             []ServerResult
 	Samples             []domain.ServerSample
 }
@@ -99,8 +100,11 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 	arrivalTime := 0.0
 	accepted := 0
 	discarded := 0
+	interarrivals := make([]float64, 0, cfg.RequestCount)
 	for id := range cfg.RequestCount {
-		arrivalTime += cfg.InterArrival.Sample(arrivalRNG)
+		interval := cfg.InterArrival.Sample(arrivalRNG)
+		interarrivals = append(interarrivals, interval)
+		arrivalTime += interval
 		if arrivalTime > cfg.Horizon {
 			discarded = cfg.RequestCount - id
 			break
@@ -114,7 +118,7 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 		sequence++
 	}
 
-	result := Result{Requested: cfg.RequestCount, DiscardedAtHorizon: discarded}
+	result := Result{Requested: cfg.RequestCount, DiscardedAtHorizon: discarded, Interarrivals: interarrivals}
 	result.Samples = appendSamples(result.Samples, 0, servers)
 	clock := 0.0
 	var totalResponseTime float64

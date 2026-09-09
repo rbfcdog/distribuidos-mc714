@@ -19,6 +19,12 @@ func TestRunAggregatesRequestedTrialCount(t *testing.T) {
 	if summary.MeanCompleted != 30 || summary.MeanUnfinished != 0 {
 		t.Fatalf("completed=%g unfinished=%g, want 30 and 0", summary.MeanCompleted, summary.MeanUnfinished)
 	}
+	if len(summary.Runs) != 10 {
+		t.Fatalf("stored %d trials, want 10", len(summary.Runs))
+	}
+	if summary.StdThroughput < 0 || summary.FiniteHorizon.Throughput <= 0 {
+		t.Fatalf("missing trial statistics or finite-horizon model: %#v", summary)
+	}
 	if len(summary.Representative.Samples) == 0 {
 		t.Fatal("representative trial did not retain server monitoring samples")
 	}

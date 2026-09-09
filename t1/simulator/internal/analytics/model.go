@@ -59,6 +59,37 @@ func Calculate(arrivals mathutil.BoundedPareto, serverCount, serverCapacity int,
 	return model, nil
 }
 
+// BurstModel is the finite-horizon counterpart of the stationary fair-routing
+// model: N arrivals, last-arrival expectation N E[X], then one service time.
+type BurstModel struct {
+	MeanInterarrival    float64
+	ExpectedLastArrival float64
+	ExpectedDuration    float64
+	Throughput          float64
+	AverageResponseTime float64
+}
+
+// FiniteHorizon estimates no-queue metrics for a burst of n requests. Response
+// time equals the constant service time; throughput is n / (n E[X] + 1/μ).
+func FiniteHorizon(n int, arrivals mathutil.BoundedPareto, serviceTime float64) (BurstModel, error) {
+	if n <= 0 || serviceTime <= 0 {
+		return BurstModel{}, fmt.Errorf("burst size and service time must be positive")
+	}
+	mean := arrivals.Mean()
+	if mean <= 0 || math.IsNaN(mean) || math.IsInf(mean, 0) {
+		return BurstModel{}, fmt.Errorf("bounded Pareto mean must be finite and positive")
+	}
+	lastArrival := float64(n) * mean
+	duration := lastArrival + serviceTime
+	return BurstModel{
+		MeanInterarrival:    mean,
+		ExpectedLastArrival: lastArrival,
+		ExpectedDuration:    duration,
+		Throughput:          float64(n) / duration,
+		AverageResponseTime: serviceTime,
+	}, nil
+}
+
 func erlangC(offeredLoad float64, servers int, utilization float64) float64 {
 	term := 1.0
 	sum := term

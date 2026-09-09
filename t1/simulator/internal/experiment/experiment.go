@@ -11,18 +11,32 @@ import (
 	"mc714-t1/internal/engine"
 )
 
+// Trial is one independent repetition of a policy/burst scenario.
+type Trial struct {
+	Index               int
+	Throughput          float64
+	AverageResponseTime float64
+	Duration            float64
+	Completed           int
+	Assigned            []int
+}
+
 // Summary aggregates one policy and burst-size scenario over independent runs.
 type Summary struct {
 	Policy                  string
 	BurstSize               int
 	Trials                  int
 	MeanThroughput          float64
+	StdThroughput           float64
 	MeanResponseTime        float64
+	StdResponseTime         float64
 	MeanCompleted           float64
 	MeanUnfinished          float64
 	Analytical              analytics.Model
+	FiniteHorizon           analytics.BurstModel
 	ThroughputAbsoluteError float64
 	ResponseAbsoluteError   float64
+	Runs                    []Trial
 	Representative          engine.Result
 }
 
@@ -36,13 +50,21 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
+	burst, err := analytics.FiniteHorizon(cfg.RequestCount, cfg.InterArrival, cfg.ServiceTime)
+	if err != nil {
+		return Summary{}, err
+	}
 
 	summary := Summary{
-		Policy:     string(cfg.Policy),
-		BurstSize:  cfg.RequestCount,
-		Trials:     trials,
-		Analytical: model,
+		Policy:        string(cfg.Policy),
+		BurstSize:     cfg.RequestCount,
+		Trials:        trials,
+		Analytical:    model,
+		FiniteHorizon: burst,
+		Runs:          make([]Trial, 0, trials),
 	}
+	throughputs := make([]float64, 0, trials)
+	responses := make([]float64, 0, trials)
 	for trial := range trials {
 		trafficRNG := rand.New(rand.NewPCG(seed+uint64(trial), 0x9e3779b97f4a7c15))
 		routingRNG := rand.New(rand.NewPCG(seed+uint64(trial), policyStream(cfg.Policy)))
@@ -53,6 +75,20 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 		if trial == 0 {
 			summary.Representative = result
 		}
+		assigned := make([]int, len(result.Servers))
+		for index := range result.Servers {
+			assigned[index] = result.Servers[index].Assigned
+		}
+		summary.Runs = append(summary.Runs, Trial{
+			Index:               trial + 1,
+			Throughput:          result.Throughput,
+			AverageResponseTime: result.AverageResponseTime,
+			Duration:            result.Duration,
+			Completed:           result.Completed,
+			Assigned:            assigned,
+		})
+		throughputs = append(throughputs, result.Throughput)
+		responses = append(responses, result.AverageResponseTime)
 		summary.MeanThroughput += result.Throughput
 		summary.MeanResponseTime += result.AverageResponseTime
 		summary.MeanCompleted += float64(result.Completed)
@@ -64,6 +100,8 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	summary.MeanResponseTime /= divisor
 	summary.MeanCompleted /= divisor
 	summary.MeanUnfinished /= divisor
+	summary.StdThroughput = sampleStd(throughputs)
+	summary.StdResponseTime = sampleStd(responses)
 	summary.ThroughputAbsoluteError = math.Abs(summary.MeanThroughput - model.Throughput)
 	if !math.IsInf(model.AverageResponseTime, 0) {
 		summary.ResponseAbsoluteError = math.Abs(summary.MeanResponseTime - model.AverageResponseTime)
@@ -71,6 +109,23 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 		summary.ResponseAbsoluteError = math.Inf(1)
 	}
 	return summary, nil
+}
+
+func sampleStd(values []float64) float64 {
+	if len(values) < 2 {
+		return 0
+	}
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= float64(len(values))
+	sumSquares := 0.0
+	for _, value := range values {
+		delta := value - mean
+		sumSquares += delta * delta
+	}
+	return math.Sqrt(sumSquares / float64(len(values)-1))
 }
 
 func policyStream(policy balancer.Policy) uint64 {
