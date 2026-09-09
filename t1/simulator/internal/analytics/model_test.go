@@ -26,3 +26,24 @@ func TestCalculateFairModel(t *testing.T) {
 		t.Fatalf("response time = %g, want service time 0.05 with zero arrival variance", model.AverageResponseTime)
 	}
 }
+
+func TestFiniteHorizonMatchesNoQueueBurst(t *testing.T) {
+	arrivals, err := mathutil.NewBoundedPareto(0.01, 0.01, 1.4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, err := FiniteHorizon(30, arrivals, 0.05)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantDuration := 30*0.01 + 0.05
+	if math.Abs(model.ExpectedDuration-wantDuration) > 1e-12 {
+		t.Fatalf("duration = %g, want %g", model.ExpectedDuration, wantDuration)
+	}
+	if math.Abs(model.Throughput-30/wantDuration) > 1e-12 {
+		t.Fatalf("throughput = %g, want %g", model.Throughput, 30/wantDuration)
+	}
+	if model.AverageResponseTime != 0.05 {
+		t.Fatalf("response = %g, want 0.05", model.AverageResponseTime)
+	}
+}
