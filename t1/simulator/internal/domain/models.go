@@ -14,4 +14,6 @@ type ServerSample struct {
 	Active      int
 	QueueLength int
 	Completed   int
+	Capacity    int
+	Backup      bool
 }

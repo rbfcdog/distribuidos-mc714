@@ -6,9 +6,7 @@
 \usepackage{booktabs}
 \usepackage{amsmath}
 \usepackage{url}
-\usepackage{float}
 \makeatletter
-% IEEEtran hardcodes an em dash after the abstract and index terms names.
 \def\abstract{\normalfont
     \if@twocolumn
       \@IEEEabskeysecsize\bfseries\textit{\abstractname}.\ \relax
@@ -34,126 +32,113 @@ MC714, Sistemas Distribuídos, Universidade Estadual de Campinas}}
 \maketitle
 
 \begin{abstract}
-Este trabalho implementa e avalia um balanceador de carga para três servidores homogêneos. O simulador é orientado a eventos discretos, recebe chegadas com distribuição Bounded Pareto e compara as políticas aleatória, Round Robin e Fila Mais Curta. Cada servidor executa até quinze requisições simultâneas, com tempo de serviço determinístico de $0{,}05$ unidades de tempo. Para cada combinação de política e rajada de 30, 60, 90 e 120 requisições, foram executadas dez repetições independentes. As métricas são vazão e tempo médio de resposta, confrontadas com um modelo analítico de roteamento justo. Round Robin e Fila Mais Curta preservaram menor atraso sob rajadas maiores; o roteamento aleatório sofre com desequilíbrios transitórios.
+Este trabalho implementa e avalia um balanceador de carga para três servidores. O simulador orientado a eventos discretos recebe rajadas Bounded Pareto e compara as políticas Aleatória, Round Robin e Fila Mais Curta. Cada servidor homogêneo executa até quinze requisições simultâneas, com serviço determinístico de $0{,}05$. Cada cenário usa horizonte fixo de 200 unidades e dez repetições. A análise emprega um modelo transiente de lote finito com roteamento justo, evitando hipóteses de regime estacionário incompatíveis com a rajada. Também são avaliados servidores heterogêneos, roteamento ciente de capacidade e um servidor de backup para estouro de buffers.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Balanceamento de carga, simulação de eventos discretos, Bounded Pareto, filas G/D/c, sistemas distribuídos.
+Balanceamento de carga, simulação de eventos discretos, Bounded Pareto, modelo transiente, sistemas distribuídos.
 \end{IEEEkeywords}
 
 \section{Introdução}
-O balanceamento de carga distribui trabalho entre recursos equivalentes para evitar a ociosidade de alguns servidores e a sobrecarga de outros. Este projeto modela um front-end que recebe uma rajada finita de requisições e escolhe um dos três servidores. A implementação e os parâmetros obedecem ao enunciado do Trabalho~1~\cite{enunciado}: três servidores homogêneos, serviço constante de $0{,}05$, capacidade simultânea de 15 requisições por servidor, horizonte máximo de 200 unidades de tempo e dez execuções independentes por cenário.
+O trabalho modela um front-end que recebe uma rajada finita e encaminha cada requisição a um servidor. Os experimentos seguem o enunciado~\cite{enunciado}: rajadas de 30, 60, 90 e 120 requisições; três servidores homogêneos; capacidade simultânea de 15 posições por servidor; serviço constante de $S=0{,}05$; horizonte $T=200$; e dez execuções independentes.
 
-O objetivo é medir o efeito da política de despacho durante rajadas de intensidades crescentes. Além da simulação, foi construído um modelo analítico com probabilidade de encaminhamento $1/3$ para cada servidor, permitindo separar o limite estacionário de capacidade do comportamento transitório das rajadas.
+Uma rajada termina muito antes de $T$, mas o período ocioso restante pertence ao experimento. Portanto, vazão e utilização são calculadas sobre as 200 unidades, e não sobre o tempo necessário para escoar a rajada. A comparação teórica também é transiente e possui a mesma população finita, em vez de representar chegadas contínuas por tempo infinito.
 
 \section{Arquitetura e parametrização}
-\subsection{Simulador}
-A implementação em Go usa uma fila de prioridade de eventos. Um evento de chegada consulta o balanceador; se o servidor escolhido tiver menos de 15 requisições ativas, inicia-se o serviço e agenda-se sua partida. Caso contrário, a requisição entra em fila FIFO. Em cada partida, a próxima requisição da fila inicia imediatamente, quando existir. Partidas têm precedência sobre chegadas no mesmo instante, eliminando ambiguidade na liberação de capacidade.
+\subsection{Simulador e políticas}
+A implementação em Go usa uma fila mínima de eventos. Uma chegada consulta o balanceador; havendo uma posição livre, o serviço começa e uma partida é agendada. Caso contrário, a requisição entra no buffer FIFO. Partidas precedem chegadas simultâneas. O relógio salta entre eventos, porém o resultado final avança até $T=200$, incorporando a ociosidade posterior à rajada.
 
-A política aleatória sorteia um destino uniforme. Round Robin mantém um índice por execução e percorre ciclicamente os servidores. Fila Mais Curta escolhe o menor valor de requisições ativas mais enfileiradas; empates usam o menor identificador. O estado do roteador e os geradores aleatórios são locais à repetição, portanto uma execução não altera outra. O simulador registra, depois de cada evento, tempo, servidor, número ativo, comprimento da fila e total concluído.
+Aleatória sorteia um servidor primário uniforme. Round Robin mantém um índice local à execução. Fila Mais Curta minimiza requisições ativas mais enfileiradas, com desempate pelo menor identificador. O simulador registra ocupação, fila e conclusões depois de cada evento. Geradores distintos para tráfego e roteamento asseguram o mesmo traço de chegada entre políticas em uma repetição.
 
-\subsection{Tráfego Bounded Pareto}
-Os intervalos entre chegadas são amostrados em $[L,H]$ por transformação inversa. Para $L \leq x \leq H$, a distribuição empregada é
+\subsection{Tráfego}
+Os intervalos são amostrados por transformação inversa de uma Pareto Limitada em $[L,U]$, cuja densidade é
 \begin{equation}
-f_X(x)=\frac{\alpha L^\alpha x^{-(\alpha+1)}}{1-(L/H)^\alpha}.
+ f_X(x)=\frac{\alpha L^\alpha x^{-(\alpha+1)}}{1-(L/U)^\alpha},\quad L\leq x\leq U.
 \end{equation}
-Usaram-se $L=0{,}0004$ e $H=0{,}04$. Para tráfego com dependência de longa duração, a aproximação usual relaciona o expoente à parametrização de Hurst: $\alpha=3-2\mathcal{H}$. Logo, $\mathcal{H}=0{,}8$ resulta em $\alpha=1{,}4$. Os valores são limitados, evitando amostras infinitas e preservando o caráter de rajada.
+Usam-se $L=0{,}0004$, $U=0{,}04$ e $\alpha=3-2\mathcal{H}=1{,}4$ para $\mathcal{H}=0{,}8$. A Fig.~\ref{fig:traffic} confronta as amostras com a densidade teórica.
 
-\section{Modelo analítico}
-O modelo supõe roteamento justo, logo a taxa de chegada de cada servidor é $\lambda_s=\lambda/3$, em que $\lambda=1/E[X]$ vem do primeiro momento da Bounded Pareto. O tempo de serviço é determinístico, com taxa por posição $\mu=1/0{,}05=20$, e cada servidor possui $c=15$ posições. A utilização por servidor é
-\begin{equation}
-\rho=\frac{\lambda_s}{c\mu}.
-\end{equation}
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/traffic_bounded_pareto.png}
+\caption{Intervalos de chegada da rajada de 120 requisições e densidade Bounded Pareto.}
+\label{fig:traffic}
+\end{figure}
 
-Para $\rho<1$, estima-se a espera pela aproximação G/D/c baseada em Erlang-C. Seja $C(c,\rho)$ a probabilidade de esperar do modelo M/M/c e $C_a^2=\operatorname{Var}(X)/E[X]^2$ a variabilidade dos intervalos de chegada. Como o serviço é determinístico, $C_s^2=0$; assim,
+\section{Modelo analítico transiente}
+Considere $m=3$ servidores e encaminhamento independente com probabilidade $p=1/m$, conforme exigido. Para uma rajada com $N$ requisições, a ocupação do servidor $s$ é
 \begin{equation}
-W_q \approx \frac{C(c,\rho)}{c\mu-\lambda_s}\frac{C_a^2+C_s^2}{2},
-\qquad R=0{,}05+W_q.
+ K_s\sim\operatorname{Binomial}(N,1/m).
 \end{equation}
-A vazão de regime é $T=\min(\lambda,3c\mu)$. Para os parâmetros empregados, o modelo estacionário fornece $T=847{,}47$ requisições por unidade de tempo, $R=0{,}11433$ e utilização $\rho\approx0{,}94$. Como as rajadas do enunciado são finitas, complementa-se essa referência com um horizonte $T_N=N E[X]+0{,}05$ e vazão $N/T_N$, válida quando a capacidade simultânea absorve a carga; nesse caso a resposta analítica reduz-se ao serviço $0{,}05$.
+O modelo concentra o lote em $t=0$. Condicionado a $K_s=k$, um servidor com capacidade $c_s$ e serviço $S_s$ conclui a $j$-ésima requisição no instante $S_s\lceil j/c_s\rceil$. Assim, o tempo médio esperado é
+\begin{equation}
+ R_0=\frac{1}{N}\sum_{s=1}^{m}\sum_{k=0}^{N}\Pr[K_s=k]
+ S_s\sum_{j=1}^{k}\left\lceil\frac{j}{c_s}\right\rceil .
+\end{equation}
+$R_0$ é uma referência transiente de lote instantâneo; a simulação distribui chegadas em tempos positivos e, em geral, reduz sua sobreposição. O limite sem fila é a média dos $S_s$.
+
+Como todas as requisições terminam antes de 200, vazão e utilização teóricas no horizonte são
+\begin{equation}
+ \Theta=\frac{N}{T},\qquad
+ \rho=\frac{\sum_s E[K_s]S_s}{T\sum_s c_s}.
+\end{equation}
+No caso homogêneo, $\rho=NS/(3cT)$. Na simulação, a forma equivalente é $\rho_{sim}=\sum_s\int_0^T B_s(t)dt/(T\sum_s c_s)$, onde $B_s(t)$ é o número de posições ativas. Essas definições medem o experimento completo; a taxa instantânea $1/E[X]$ caracteriza somente a intensidade interna da rajada e não é utilizada como vazão de longo prazo.
 
 \section{Método experimental}
-Foram avaliadas as três políticas com rajadas de 30, 60, 90 e 120 requisições. Cada ponto é a média de dez execuções independentes, com sementes reproduzíveis. Os fluxos de chegada usam geradores separados dos sorteios do roteamento; consequentemente, uma mesma repetição apresenta o mesmo traço de chegada para todas as políticas. Chegadas ou partidas posteriores ao horizonte de 200 são descartadas da observação. A vazão observada é o número concluído dividido pelo tempo simulado, e o tempo de resposta é a média entre chegada e partida das requisições concluídas.
+Para cada política e valor de $N$, executaram-se dez repetições com sementes reproduzíveis. A vazão é $C(T)/T$, onde $C(T)$ conta conclusões até 200. O tempo de resposta é a média entre chegada e partida das requisições concluídas. Também se mede a integral de ocupação, rejeições por buffer cheio e acionamentos do backup.
+A matriz completa e os extras são reproduzidos em Linux ou Windows com Go~1.26 por \texttt{go run ./cmd/simulador}; opções de linha de comando exportam resultados, repetições, tráfego e traços em CSV.
 
-\begin{table}[t]
-\caption{Médias de dez simulações por cenário. $T_s$: vazão simulada; $R_s$: tempo médio de resposta.}
+\begin{table}[!t]
+\caption{Média de dez execuções. $\Theta$: req./ut; $\rho$: porcentagem; demais colunas: resposta média.}
 \label{tab:results}
 \centering
 \scriptsize
-\begin{tabular}{llrr}
+\begin{tabular}{rrrrrr}
 \toprule
-Política & Rajada & $T_s$ & $R_s$ \\
+$N$ & $\Theta$ & $\rho(\%)$ & Aleat. & RR & Menor fila \\
 \midrule
-Aleatória & 30  & 359,19 & 0,05000 \\
-Aleatória & 60  & 470,79 & 0,05203 \\
-Aleatória & 90  & 524,69 & 0,05304 \\
-Aleatória & 120 & 572,15 & 0,05388 \\
-\midrule
-Round Robin & 30  & 359,19 & 0,05000 \\
-Round Robin & 60  & 485,98 & 0,05106 \\
-Round Robin & 90  & 556,07 & 0,05163 \\
-Round Robin & 120 & 594,55 & 0,05198 \\
-\midrule
-Fila Mais Curta & 30  & 359,19 & 0,05000 \\
-Fila Mais Curta & 60  & 484,31 & 0,05107 \\
-Fila Mais Curta & 90  & 549,87 & 0,05165 \\
-Fila Mais Curta & 120 & 593,93 & 0,05201 \\
+30  & 0,15 & 0,0167 & 0,05056 & 0,05000 & 0,05000 \\
+60  & 0,30 & 0,0333 & 0,05251 & 0,05115 & 0,05116 \\
+90  & 0,45 & 0,0500 & 0,05383 & 0,05202 & 0,05205 \\
+120 & 0,60 & 0,0667 & 0,05470 & 0,05284 & 0,05285 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \section{Resultados e discussão}
-A Fig.~\ref{fig:traffic} confirma a parametrização Bounded Pareto com $\mathcal{H}=0{,}8$ ($\alpha=1{,}4$): os intervalos simulados concentram-se perto de $L=0{,}0004$, com cauda até $H=0{,}04$. O primeiro momento teórico dessa distribuição é $E[X]\approx0{,}00118$, ou seja, $\lambda\approx847$, de modo que o tempo de serviço $0{,}05$ é muito maior que o intervalo típico e as chegadas chegam em rajada.
+A Tabela~\ref{tab:results} e a Fig.~\ref{fig:metrics} mostram que todas as políticas concluem o lote. Por isso, a vazão é determinada por $N/200$, sem diferença entre políticas, e a utilização permanece abaixo de $0{,}067\%$. A política afeta o atraso: em $N=120$, Round Robin reduz a resposta de $0{,}05470$ para $0{,}05284$ ($3{,}4\%$) em relação à Aleatória.
 
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=\columnwidth]{figures/traffic_bounded_pareto.png}
-\caption{Densidade dos intervalos de chegada na rajada de 120 requisições e PDF teórica Bounded Pareto.}
-\label{fig:traffic}
-\end{figure}
-
-A Tabela~\ref{tab:results} e a Fig.~\ref{fig:metrics} reportam a média e o desvio-padrão das dez execuções. Em 30 requisições todas as políticas coincidem com o serviço $0{,}05$: a capacidade de 15 posições por servidor absorve a rajada. Com a carga, o roteamento aleatório degrada vazão e atraso; Round Robin e Fila Mais Curta permanecem próximos. Em 120 requisições, Round Robin reduz o tempo médio de $0{,}05388$ para $0{,}05198$ ($\approx3{,}5\%$) em relação à política aleatória.
-
-\begin{figure}[!htb]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/metrics_by_burst.png}
-\caption{Vazão e tempo de resposta: média $\pm$ desvio-padrão de 10 execuções, contra o modelo de horizonte finito.}
+\caption{Média e desvio-padrão de dez execuções, modelo finito e referência sem fila.}
 \label{fig:metrics}
 \end{figure}
 
-A Fig.~\ref{fig:models} faz a comparação quantitativa exigida. O modelo estacionário com probabilidade $1/3$ superestima vazão ($847$ vs.\ $359$--$595$) e atraso ($0{,}114$ vs.\ $\approx0{,}05$), porque assume fluxo renovador indefinido com $\rho\approx0{,}94$. O horizonte finito $N/T_N$ acompanha a simulação: $351$ vs.\ $359$ em 30 requisições e $626$ vs.\ $595$ em 120. A diferença residual cresce com a rajada e coincide com o surgimento de filas.
+A Fig.~\ref{fig:model} evidencia a comparação correta de horizonte. A vazão analítica coincide com a simulação: $0{,}15$, $0{,}30$, $0{,}45$ e $0{,}60$. Para resposta, $S=0{,}05$ é a referência sem fila, enquanto o lote instantâneo prevê $0{,}05015$, $0{,}06283$, $0{,}07797$ e $0{,}09439$. Os dados ficam próximos do limite sem fila porque o serviço progride durante a janela de chegadas; a diferença crescente confirma pequenas filas nas rajadas maiores. O modelo não usa Erlang-C nem uma taxa estacionária, pois não há fluxo infinito em equilíbrio.
 
-\begin{figure}[!htb]
+\begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/model_comparison.png}
-\caption{Round Robin: simulação versus modelo de horizonte finito e modelo estacionário com roteamento $1/3$.}
-\label{fig:models}
+\caption{Round Robin: vazão no horizonte e comparação transiente do tempo de resposta.}
+\label{fig:model}
 \end{figure}
 
-A Fig.~\ref{fig:fairness} confronta a hipótese analítica $1/3$ com a fração média de requisições atribuídas a cada servidor. Round Robin realiza exatamente o balanceamento justo; Fila Mais Curta permanece próxima de $1/3$; a política aleatória desvia até cerca de $38\%/28\%$ nos servidores extremos nas rajadas menores. Isso explica o atraso extra: o modelo justo descreve Round Robin, não o sorteio uniforme em rajadas curtas.
+\subsection{Pontos extras}
+Servidores heterogêneos foram configurados como $(c_s,S_s)=(10,0{,}06)$, $(15,0{,}05)$ e $(20,0{,}04)$. A política Trabalho Mínimo escolhe o menor valor $(a_s+q_s+1)S_s/c_s$, incorporando ocupação, fila, capacidade e velocidade. Em $N=120$, ela mantém $\Theta=0{,}60$ e reduz a resposta de $0{,}06349$ (Round Robin) para $0{,}04815$.
 
-\begin{figure}[!htb]
-\centering
-\includegraphics[width=\columnwidth]{figures/fairness_vs_equal_share.png}
-\caption{Participação média de cada servidor nas dez execuções, comparada à probabilidade analítica $1/3$.}
-\label{fig:fairness}
-\end{figure}
-
-O monitoramento de estado mostra que a ocupação agregada atinge o teto $3\times15=45$ na rajada de 120, enquanto as filas permanecem curtas: comprimento máximo de 5 requisições no roteamento aleatório e de 3 em Round Robin e Fila Mais Curta. O horizonte de 200 nunca descarta requisições nos cenários avaliados.
+No segundo extra, cada primário possui buffer para duas requisições. Sem backup, há em média 5,9 rejeições e $\Theta=0{,}5705$. Um quarto servidor de backup, excluído do roteamento normal, é acionado somente quando o destino primário não admite outra requisição. Ele recebe em média 5,9 requisições, elimina as rejeições e restaura $\Theta=0{,}60$, com resposta $0{,}05108$.
 
 \section{Conclusão}
-O simulador implementa as três políticas exigidas, capacidade finita de processamento, tráfego Bounded Pareto, monitoramento de filas e média de dez repetições. A capacidade concorrente elimina filas nas menores rajadas; sob carga maior, Round Robin e Fila Mais Curta distribuem melhor o trabalho que a política aleatória. O modelo G/D/c com roteamento justo fornece uma base quantitativa para a comparação, e sua divergência das rajadas finitas deve ser interpretada como efeito de transiente, não como falha de capacidade. Extensões naturais são servidores heterogêneos e um servidor de backup.
+O simulador implementa as três políticas obrigatórias, capacidade concorrente, filas finitas, monitoramento e dez repetições. O horizonte fixo corrige a interpretação de vazão e utilização: as rajadas são curtas e o sistema fica ocioso na maior parte das 200 unidades. O modelo binomial transiente preserva população finita, roteamento $1/3$ e ondas de serviço, oferecendo uma comparação compatível com o experimento. Os extras demonstram ganho de roteamento ciente de capacidade e recuperação de estouro por backup.
 
 \section*{Divisão de trabalho}
-\textbf{Rodrigo Camargo}: implementação do código-fonte do simulador, incluindo motor de eventos discretos, servidores, políticas de balanceamento, geração de tráfego, métricas e testes. \textbf{André Loubet}: redação, organização e revisão do relatório técnico, incluindo a apresentação dos resultados, gráficos e comparação entre simulação e modelo analítico.
+\textbf{Rodrigo Camargo}: simulador, políticas, tráfego, métricas, extensões e testes. \textbf{André Loubet}: redação, organização e revisão do relatório, gráficos e comparação analítica.
 
 \begin{thebibliography}{9}
 \bibitem{enunciado}
-C. A. Astudillo Trujillo e D. M. da Cunha, ``Trabalho 1: Balanceador de Carga para um Sistema Distribuído,'' MC714, Sistemas Distribuídos, Instituto de Computação, Unicamp, ago. 2026.
-\bibitem{allen}
-A. O. Allen, \textit{Probability, Statistics, and Queueing Theory with Computer Science Applications}, 2nd ed. Academic Press, 1990.
-\bibitem{bertsekas}
-D. Bertsekas and R. Gallager, \textit{Data Networks}, 2nd ed. Prentice Hall, 1992.
+C. A. Astudillo Trujillo e D. M. da Cunha, ``Trabalho 1: Balanceador de Carga para um Sistema Distribuído,'' MC714, Unicamp, ago. 2026.
+\bibitem{ross}
+S. M. Ross, \textit{Introduction to Probability Models}, 12th ed. Academic Press, 2019.
 \end{thebibliography}
 
 \end{document}

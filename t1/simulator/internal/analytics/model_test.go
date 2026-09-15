@@ -3,47 +3,44 @@ package analytics
 import (
 	"math"
 	"testing"
-
-	"mc714-t1/pkg/mathutil"
 )
 
-func TestCalculateFairModel(t *testing.T) {
-	arrivals, err := mathutil.NewBoundedPareto(0.01, 0.01, 1.4)
+func TestCalculateFiniteBatchUsesExperimentHorizon(t *testing.T) {
+	model, err := Calculate(30, 200, []Server{{Capacity: 15, ServiceTime: 0.05}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := Calculate(arrivals, 3, 15, 0.05)
-	if err != nil {
-		t.Fatal(err)
+	if math.Abs(model.Throughput-0.15) > 1e-12 {
+		t.Fatalf("throughput = %g, want 30/200 = 0.15", model.Throughput)
 	}
-	if model.ArrivalRate != 100 || model.PerServerArrivalRate != 100.0/3.0 {
-		t.Fatalf("unexpected routing rates: %#v", model)
+	wantUtilization := 30 * 0.05 / (15 * 200.0)
+	if math.Abs(model.Utilization-wantUtilization) > 1e-12 {
+		t.Fatalf("utilization = %g, want %g", model.Utilization, wantUtilization)
 	}
-	if !model.Stable {
-		t.Fatal("model marked a low-load system unstable")
-	}
-	if math.Abs(model.AverageResponseTime-0.05) > 1e-12 {
-		t.Fatalf("response time = %g, want service time 0.05 with zero arrival variance", model.AverageResponseTime)
+	if math.Abs(model.AverageResponseTime-0.075) > 1e-12 {
+		t.Fatalf("response = %g, want two service waves averaged to 0.075", model.AverageResponseTime)
 	}
 }
 
-func TestFiniteHorizonMatchesNoQueueBurst(t *testing.T) {
-	arrivals, err := mathutil.NewBoundedPareto(0.01, 0.01, 1.4)
+func TestCalculateFiniteBatchModelsFairRandomRouting(t *testing.T) {
+	servers := []Server{{Capacity: 15, ServiceTime: 0.05}, {Capacity: 15, ServiceTime: 0.05}, {Capacity: 15, ServiceTime: 0.05}}
+	model, err := Calculate(120, 200, servers)
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := FiniteHorizon(30, arrivals, 0.05)
-	if err != nil {
-		t.Fatal(err)
+	if model.TransitionProbability != 1.0/3.0 {
+		t.Fatalf("transition probability = %g, want 1/3", model.TransitionProbability)
 	}
-	wantDuration := 30*0.01 + 0.05
-	if math.Abs(model.ExpectedDuration-wantDuration) > 1e-12 {
-		t.Fatalf("duration = %g, want %g", model.ExpectedDuration, wantDuration)
+	if model.AverageResponseTime <= model.NoQueueResponseTime {
+		t.Fatalf("batch response = %g, want queueing above no-queue response %g", model.AverageResponseTime, model.NoQueueResponseTime)
 	}
-	if math.Abs(model.Throughput-30/wantDuration) > 1e-12 {
-		t.Fatalf("throughput = %g, want %g", model.Throughput, 30/wantDuration)
+	if math.Abs(model.Completed-120) > 1e-9 {
+		t.Fatalf("expected completed = %g, want 120", model.Completed)
 	}
-	if model.AverageResponseTime != 0.05 {
-		t.Fatalf("response = %g, want 0.05", model.AverageResponseTime)
+}
+
+func TestCalculateRejectsMissingPrimaryServers(t *testing.T) {
+	if _, err := Calculate(30, 200, nil); err == nil {
+		t.Fatal("Calculate accepted an empty server set")
 	}
 }

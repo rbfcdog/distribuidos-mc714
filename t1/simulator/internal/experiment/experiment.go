@@ -16,8 +16,11 @@ type Trial struct {
 	Index               int
 	Throughput          float64
 	AverageResponseTime float64
+	Utilization         float64
 	Duration            float64
 	Completed           int
+	RejectedFull        int
+	BackupActivations   int
 	Assigned            []int
 }
 
@@ -30,41 +33,49 @@ type Summary struct {
 	StdThroughput           float64
 	MeanResponseTime        float64
 	StdResponseTime         float64
+	MeanUtilization         float64
+	StdUtilization          float64
 	MeanCompleted           float64
 	MeanUnfinished          float64
+	MeanRejectedFull        float64
+	MeanBackupActivations   float64
 	Analytical              analytics.Model
-	FiniteHorizon           analytics.BurstModel
 	ThroughputAbsoluteError float64
 	ResponseAbsoluteError   float64
 	Runs                    []Trial
 	Representative          engine.Result
 }
 
-// Run executes trials independent simulations. The traffic seed depends only
-// on trial number, so every policy sees the same arrival trace in a trial.
+// Run executes independent simulations. The traffic seed depends only on trial
+// number, so every policy sees the same arrival trace in a trial.
 func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	if trials <= 0 {
 		return Summary{}, fmt.Errorf("trial count must be positive: %d", trials)
 	}
-	model, err := analytics.Calculate(cfg.InterArrival, cfg.ServerCount, cfg.ServerCapacity, cfg.ServiceTime)
-	if err != nil {
-		return Summary{}, err
+
+	analyticalServers := make([]analytics.Server, 0, len(cfg.Servers))
+	for _, server := range cfg.Servers {
+		if !server.Backup {
+			analyticalServers = append(analyticalServers, analytics.Server{
+				Capacity: server.Capacity, ServiceTime: server.ServiceTime,
+			})
+		}
 	}
-	burst, err := analytics.FiniteHorizon(cfg.RequestCount, cfg.InterArrival, cfg.ServiceTime)
+	model, err := analytics.Calculate(cfg.RequestCount, cfg.Horizon, analyticalServers)
 	if err != nil {
 		return Summary{}, err
 	}
 
 	summary := Summary{
-		Policy:        string(cfg.Policy),
-		BurstSize:     cfg.RequestCount,
-		Trials:        trials,
-		Analytical:    model,
-		FiniteHorizon: burst,
-		Runs:          make([]Trial, 0, trials),
+		Policy:     string(cfg.Policy),
+		BurstSize:  cfg.RequestCount,
+		Trials:     trials,
+		Analytical: model,
+		Runs:       make([]Trial, 0, trials),
 	}
 	throughputs := make([]float64, 0, trials)
 	responses := make([]float64, 0, trials)
+	utilizations := make([]float64, 0, trials)
 	for trial := range trials {
 		trafficRNG := rand.New(rand.NewPCG(seed+uint64(trial), 0x9e3779b97f4a7c15))
 		routingRNG := rand.New(rand.NewPCG(seed+uint64(trial), policyStream(cfg.Policy)))
@@ -83,31 +94,38 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 			Index:               trial + 1,
 			Throughput:          result.Throughput,
 			AverageResponseTime: result.AverageResponseTime,
+			Utilization:         result.Utilization,
 			Duration:            result.Duration,
 			Completed:           result.Completed,
+			RejectedFull:        result.RejectedFull,
+			BackupActivations:   result.BackupActivations,
 			Assigned:            assigned,
 		})
 		throughputs = append(throughputs, result.Throughput)
 		responses = append(responses, result.AverageResponseTime)
+		utilizations = append(utilizations, result.Utilization)
 		summary.MeanThroughput += result.Throughput
 		summary.MeanResponseTime += result.AverageResponseTime
+		summary.MeanUtilization += result.Utilization
 		summary.MeanCompleted += float64(result.Completed)
 		summary.MeanUnfinished += float64(result.Unfinished)
+		summary.MeanRejectedFull += float64(result.RejectedFull)
+		summary.MeanBackupActivations += float64(result.BackupActivations)
 	}
 
 	divisor := float64(trials)
 	summary.MeanThroughput /= divisor
 	summary.MeanResponseTime /= divisor
+	summary.MeanUtilization /= divisor
 	summary.MeanCompleted /= divisor
 	summary.MeanUnfinished /= divisor
+	summary.MeanRejectedFull /= divisor
+	summary.MeanBackupActivations /= divisor
 	summary.StdThroughput = sampleStd(throughputs)
 	summary.StdResponseTime = sampleStd(responses)
+	summary.StdUtilization = sampleStd(utilizations)
 	summary.ThroughputAbsoluteError = math.Abs(summary.MeanThroughput - model.Throughput)
-	if !math.IsInf(model.AverageResponseTime, 0) {
-		summary.ResponseAbsoluteError = math.Abs(summary.MeanResponseTime - model.AverageResponseTime)
-	} else {
-		summary.ResponseAbsoluteError = math.Inf(1)
-	}
+	summary.ResponseAbsoluteError = math.Abs(summary.MeanResponseTime - model.AverageResponseTime)
 	return summary, nil
 }
 
@@ -136,6 +154,8 @@ func policyStream(policy balancer.Policy) uint64 {
 		return 0x9fb21c651e98df25
 	case balancer.ShortestQueue:
 		return 0xc13fa9a902a6328f
+	case balancer.LeastWork:
+		return 0x91e10da5c79e7b1d
 	default:
 		return 0
 	}

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"math"
 	rand "math/rand/v2"
 	"testing"
 
@@ -8,32 +9,35 @@ import (
 	"mc714-t1/pkg/mathutil"
 )
 
-func TestRunQueuesAfterConcurrentCapacity(t *testing.T) {
-	arrivals, err := mathutil.NewBoundedPareto(0.001, 0.001, 1.4)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cfg := Config{
-		Policy:         balancer.RoundRobin,
-		RequestCount:   30,
-		Horizon:        1,
-		ServiceTime:    0.05,
-		ServerCount:    1,
-		ServerCapacity: 15,
-		InterArrival:   arrivals,
-	}
+func TestRunUsesEntireExperimentHorizonForMetrics(t *testing.T) {
+	cfg := testConfig(30, 1, []ServerConfig{{Capacity: 15, ServiceTime: 0.05, BufferCapacity: 30}})
 	result, err := Run(cfg, newRNG(1), newRNG(2))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Completed != 30 || result.Unfinished != 0 {
-		t.Fatalf("completed=%d unfinished=%d, want 30 and 0", result.Completed, result.Unfinished)
+
+	if result.Duration != cfg.Horizon {
+		t.Fatalf("duration = %g, want fixed horizon %g", result.Duration, cfg.Horizon)
 	}
-	if result.Servers[0].Assigned != 30 || result.Servers[0].Completed != 30 {
-		t.Fatalf("server result = %#v, want all requests assigned and completed", result.Servers[0])
+	if result.Throughput != 30 {
+		t.Fatalf("throughput = %g, want completed/horizon = 30", result.Throughput)
 	}
-	if result.AverageResponseTime <= cfg.ServiceTime {
-		t.Fatalf("average response time = %g, want queueing delay above service time %g", result.AverageResponseTime, cfg.ServiceTime)
+	if math.Abs(result.Utilization-0.1) > 1e-12 {
+		t.Fatalf("utilization = %g, want 0.1", result.Utilization)
+	}
+}
+
+func TestRunQueuesAfterConcurrentCapacity(t *testing.T) {
+	cfg := testConfig(30, 1, []ServerConfig{{Capacity: 15, ServiceTime: 0.05, BufferCapacity: 30}})
+	result, err := Run(cfg, newRNG(1), newRNG(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Completed != 30 || result.Unfinished != 0 || result.RejectedFull != 0 {
+		t.Fatalf("completed=%d unfinished=%d rejected=%d, want 30, 0, 0", result.Completed, result.Unfinished, result.RejectedFull)
+	}
+	if result.AverageResponseTime <= cfg.Servers[0].ServiceTime {
+		t.Fatalf("average response time = %g, want queueing delay above service time", result.AverageResponseTime)
 	}
 
 	maxActive, maxQueue := 0, 0
@@ -50,20 +54,37 @@ func TestRunQueuesAfterConcurrentCapacity(t *testing.T) {
 	}
 }
 
-func TestRunStopsAtHorizon(t *testing.T) {
-	arrivals, err := mathutil.NewBoundedPareto(0.005, 0.005, 1.4)
+func TestRunActivatesBackupWhenPrimaryBufferIsFull(t *testing.T) {
+	cfg := testConfig(2, 1, []ServerConfig{
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 0},
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 1, Backup: true},
+	})
+	result, err := Run(cfg, newRNG(1), newRNG(2))
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := Config{
-		Policy:         balancer.RoundRobin,
-		RequestCount:   3,
-		Horizon:        0.01,
-		ServiceTime:    0.05,
-		ServerCount:    1,
-		ServerCapacity: 15,
-		InterArrival:   arrivals,
+	if result.BackupActivations != 1 || result.RejectedFull != 0 || result.Completed != 2 {
+		t.Fatalf("backup=%d rejected=%d completed=%d, want 1, 0, 2", result.BackupActivations, result.RejectedFull, result.Completed)
 	}
+	if result.Servers[1].Assigned != 1 || !result.Servers[1].Backup {
+		t.Fatalf("backup result = %#v, want one assigned request", result.Servers[1])
+	}
+}
+
+func TestRunRejectsOverflowWithoutBackup(t *testing.T) {
+	cfg := testConfig(2, 1, []ServerConfig{{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 0}})
+	result, err := Run(cfg, newRNG(1), newRNG(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Accepted != 1 || result.RejectedFull != 1 || result.Completed != 1 {
+		t.Fatalf("accepted=%d rejected=%d completed=%d, want 1, 1, 1", result.Accepted, result.RejectedFull, result.Completed)
+	}
+}
+
+func TestRunStopsAtHorizon(t *testing.T) {
+	cfg := testConfig(3, 0.01, []ServerConfig{{Capacity: 15, ServiceTime: 0.05, BufferCapacity: 3}})
+	cfg.InterArrival = mustPareto(0.005)
 	result, err := Run(cfg, newRNG(1), newRNG(2))
 	if err != nil {
 		t.Fatal(err)
@@ -78,12 +99,35 @@ func TestRunStopsAtHorizon(t *testing.T) {
 
 func TestDefaultConfigMatchesAssignmentParameters(t *testing.T) {
 	cfg := DefaultConfig(balancer.Random, 30)
-	if cfg.ServerCount != 3 || cfg.ServerCapacity != 15 || cfg.ServiceTime != 0.05 || cfg.Horizon != 200 {
+	if len(cfg.Servers) != 3 || cfg.Horizon != 200 {
 		t.Fatalf("unexpected default config: %#v", cfg)
+	}
+	for _, server := range cfg.Servers {
+		if server.Capacity != 15 || server.ServiceTime != 0.05 || server.Backup {
+			t.Fatalf("unexpected default server: %#v", server)
+		}
 	}
 	if cfg.InterArrival.Alpha != 1.4 {
 		t.Fatalf("alpha = %g, want Hurst-derived 1.4", cfg.InterArrival.Alpha)
 	}
+}
+
+func testConfig(requests int, horizon float64, servers []ServerConfig) Config {
+	return Config{
+		Policy:       balancer.RoundRobin,
+		RequestCount: requests,
+		Horizon:      horizon,
+		Servers:      servers,
+		InterArrival: mustPareto(0.001),
+	}
+}
+
+func mustPareto(interval float64) mathutil.BoundedPareto {
+	arrivals, err := mathutil.NewBoundedPareto(interval, interval, 1.4)
+	if err != nil {
+		panic(err)
+	}
+	return arrivals
 }
 
 func newRNG(seed uint64) *rand.Rand {
