@@ -3,6 +3,7 @@ package balancer
 
 import (
 	"fmt"
+	"math"
 	rand "math/rand/v2"
 )
 
@@ -13,7 +14,19 @@ const (
 	Random        Policy = "random"
 	RoundRobin    Policy = "round_robin"
 	ShortestQueue Policy = "shortest_queue"
+	LeastWork     Policy = "least_work"
 )
+
+// ServerState is the routing-visible state of one server. Backup servers are
+// excluded from normal routing and are activated by the simulation engine only
+// when a selected primary server cannot accept another request.
+type ServerState struct {
+	Active      int
+	Queued      int
+	Capacity    int
+	ServiceTime float64
+	Backup      bool
+}
 
 // Router owns the state needed by a single simulation run. It is deliberately
 // not shared between runs, so independent trials cannot affect one another.
@@ -34,25 +47,37 @@ func NewRouter(policy Policy, rng *rand.Rand) (*Router, error) {
 	return &Router{policy: policy, rng: rng}, nil
 }
 
-// Route returns a server index. loads must contain each server's active plus
-// queued requests, ensuring ShortestQueue observes in-service work as well.
-func (r *Router) Route(loads []int) int {
-	if len(loads) == 0 {
-		panic("route called with no servers")
+// Route returns the index of a primary server. ShortestQueue uses active plus
+// queued requests. LeastWork additionally normalizes the next request's work by
+// heterogeneous concurrency and service time.
+func (r *Router) Route(states []ServerState) int {
+	candidates := primaryIndexes(states)
+	if len(candidates) == 0 {
+		panic("route called with no primary servers")
 	}
 
 	switch r.policy {
 	case Random:
-		return r.rng.IntN(len(loads))
+		return candidates[r.rng.IntN(len(candidates))]
 	case RoundRobin:
-		selected := r.next
-		r.next = (r.next + 1) % len(loads)
+		selected := candidates[r.next%len(candidates)]
+		r.next = (r.next + 1) % len(candidates)
 		return selected
 	case ShortestQueue:
-		selected := 0
-		for index := 1; index < len(loads); index++ {
-			if loads[index] < loads[selected] {
+		selected := candidates[0]
+		for _, index := range candidates[1:] {
+			if states[index].load() < states[selected].load() {
 				selected = index
+			}
+		}
+		return selected
+	case LeastWork:
+		selected := candidates[0]
+		best := states[selected].normalizedWork()
+		for _, index := range candidates[1:] {
+			work := states[index].normalizedWork()
+			if work < best {
+				selected, best = index, work
 			}
 		}
 		return selected
@@ -64,9 +89,30 @@ func (r *Router) Route(loads []int) int {
 // Valid reports whether policy is implemented.
 func (p Policy) Valid() bool {
 	switch p {
-	case Random, RoundRobin, ShortestQueue:
+	case Random, RoundRobin, ShortestQueue, LeastWork:
 		return true
 	default:
 		return false
 	}
+}
+
+func primaryIndexes(states []ServerState) []int {
+	indexes := make([]int, 0, len(states))
+	for index := range states {
+		if !states[index].Backup {
+			indexes = append(indexes, index)
+		}
+	}
+	return indexes
+}
+
+func (s ServerState) load() int {
+	return s.Active + s.Queued
+}
+
+func (s ServerState) normalizedWork() float64 {
+	if s.Capacity <= 0 || s.ServiceTime <= 0 {
+		return math.Inf(1)
+	}
+	return float64(s.load()+1) * s.ServiceTime / float64(s.Capacity)
 }

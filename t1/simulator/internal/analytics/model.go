@@ -1,102 +1,113 @@
-// Package analytics provides the fair-routing queueing approximation used to
-// compare theory with the discrete-event simulation.
+// Package analytics provides a finite-burst analytical baseline for comparison
+// with the discrete-event simulation.
 package analytics
 
 import (
 	"fmt"
 	"math"
-
-	"mc714-t1/pkg/mathutil"
 )
 
-// Model describes a fair (1/3 for three servers) analytical approximation.
-type Model struct {
-	ArrivalRate          float64
-	PerServerArrivalRate float64
-	ServiceRate          float64
-	Utilization          float64
-	Throughput           float64
-	QueueingDelay        float64
-	AverageResponseTime  float64
-	Stable               bool
+// Server describes one primary server in the analytical model.
+type Server struct {
+	Capacity    int
+	ServiceTime float64
 }
 
-// Calculate estimates a G/D/c queue at each server after fair routing. The
-// arrival variability is obtained from the configured bounded-Pareto process;
-// deterministic service has squared coefficient of variation zero.
-func Calculate(arrivals mathutil.BoundedPareto, serverCount, serverCapacity int, serviceTime float64) (Model, error) {
-	if serverCount <= 0 || serverCapacity <= 0 || serviceTime <= 0 {
-		return Model{}, fmt.Errorf("server count, capacity, and service time must be positive")
+// Model describes an instantaneous finite burst routed independently and
+// uniformly among the primary servers. It is a transient batch model, not a
+// steady-state queue.
+type Model struct {
+	BurstSize             int
+	Horizon               float64
+	TransitionProbability float64
+	Completed             float64
+	Throughput            float64
+	Utilization           float64
+	NoQueueResponseTime   float64
+	QueueingDelay         float64
+	AverageResponseTime   float64
+}
+
+// Calculate evaluates a finite batch of requestCount requests arriving at time
+// zero. A request transitions to each server with probability 1/len(servers).
+// The binomial occupancy of each server gives exact expected completions, busy
+// slot-time, and response time for this worst-case instantaneous micro-burst.
+func Calculate(requestCount int, horizon float64, servers []Server) (Model, error) {
+	if requestCount <= 0 {
+		return Model{}, fmt.Errorf("request count must be positive: %d", requestCount)
 	}
-	mean := arrivals.Mean()
-	if mean <= 0 || math.IsNaN(mean) || math.IsInf(mean, 0) {
-		return Model{}, fmt.Errorf("bounded Pareto mean must be finite and positive")
+	if horizon <= 0 {
+		return Model{}, fmt.Errorf("horizon must be positive: %g", horizon)
+	}
+	if len(servers) == 0 {
+		return Model{}, fmt.Errorf("at least one primary server is required")
 	}
 
-	arrivalRate := 1 / mean
-	serviceRate := 1 / serviceTime
-	perServerRate := arrivalRate / float64(serverCount)
-	utilization := perServerRate / (float64(serverCapacity) * serviceRate)
-	throughput := math.Min(arrivalRate, float64(serverCount*serverCapacity)*serviceRate)
+	totalCapacity := 0
+	noQueueResponse := 0.0
+	for index, server := range servers {
+		if server.Capacity <= 0 || server.ServiceTime <= 0 {
+			return Model{}, fmt.Errorf("server %d capacity and service time must be positive", index)
+		}
+		totalCapacity += server.Capacity
+		noQueueResponse += server.ServiceTime / float64(len(servers))
+	}
+
+	probability := 1 / float64(len(servers))
+	pmf := binomialPMF(requestCount, probability)
+	var expectedCompleted, expectedBusySlotTime, expectedTotalResponse float64
+	for _, server := range servers {
+		for assigned, mass := range pmf {
+			completed, busySlotTime, totalResponse := batchMetrics(assigned, server, horizon)
+			expectedCompleted += mass * float64(completed)
+			expectedBusySlotTime += mass * busySlotTime
+			expectedTotalResponse += mass * totalResponse
+		}
+	}
+
 	model := Model{
-		ArrivalRate:          arrivalRate,
-		PerServerArrivalRate: perServerRate,
-		ServiceRate:          serviceRate,
-		Utilization:          utilization,
-		Throughput:           throughput,
-		Stable:               utilization < 1,
+		BurstSize:             requestCount,
+		Horizon:               horizon,
+		TransitionProbability: probability,
+		Completed:             expectedCompleted,
+		Throughput:            expectedCompleted / horizon,
+		Utilization:           expectedBusySlotTime / (float64(totalCapacity) * horizon),
+		NoQueueResponseTime:   noQueueResponse,
 	}
-	if !model.Stable {
-		model.QueueingDelay = math.Inf(1)
-		model.AverageResponseTime = math.Inf(1)
-		return model, nil
+	if expectedCompleted > 0 {
+		model.AverageResponseTime = expectedTotalResponse / expectedCompleted
+		model.QueueingDelay = model.AverageResponseTime - noQueueResponse
 	}
-
-	arrivalSCV := arrivals.Variance() / (mean * mean)
-	waitProbability := erlangC(float64(serverCapacity)*utilization, serverCapacity, utilization)
-	model.QueueingDelay = waitProbability / (float64(serverCapacity)*serviceRate - perServerRate) * (arrivalSCV / 2)
-	model.AverageResponseTime = serviceTime + model.QueueingDelay
 	return model, nil
 }
 
-// BurstModel is the finite-horizon counterpart of the stationary fair-routing
-// model: N arrivals, last-arrival expectation N E[X], then one service time.
-type BurstModel struct {
-	MeanInterarrival    float64
-	ExpectedLastArrival float64
-	ExpectedDuration    float64
-	Throughput          float64
-	AverageResponseTime float64
+func batchMetrics(assigned int, server Server, horizon float64) (completed int, busySlotTime, totalResponse float64) {
+	for first := 0; first < assigned; first += server.Capacity {
+		jobs := min(server.Capacity, assigned-first)
+		wave := first/server.Capacity + 1
+		start := float64(wave-1) * server.ServiceTime
+		busyDuration := math.Min(server.ServiceTime, math.Max(0, horizon-start))
+		busySlotTime += float64(jobs) * busyDuration
+
+		completion := float64(wave) * server.ServiceTime
+		if completion <= horizon+1e-12 {
+			completed += jobs
+			totalResponse += float64(jobs) * completion
+		}
+	}
+	return completed, busySlotTime, totalResponse
 }
 
-// FiniteHorizon estimates no-queue metrics for a burst of n requests. Response
-// time equals the constant service time; throughput is n / (n E[X] + 1/μ).
-func FiniteHorizon(n int, arrivals mathutil.BoundedPareto, serviceTime float64) (BurstModel, error) {
-	if n <= 0 || serviceTime <= 0 {
-		return BurstModel{}, fmt.Errorf("burst size and service time must be positive")
+func binomialPMF(n int, probability float64) []float64 {
+	pmf := make([]float64, n+1)
+	if probability == 1 {
+		pmf[n] = 1
+		return pmf
 	}
-	mean := arrivals.Mean()
-	if mean <= 0 || math.IsNaN(mean) || math.IsInf(mean, 0) {
-		return BurstModel{}, fmt.Errorf("bounded Pareto mean must be finite and positive")
+	pmf[0] = math.Pow(1-probability, float64(n))
+	ratio := probability / (1 - probability)
+	for k := 1; k <= n; k++ {
+		pmf[k] = pmf[k-1] * float64(n-k+1) / float64(k) * ratio
 	}
-	lastArrival := float64(n) * mean
-	duration := lastArrival + serviceTime
-	return BurstModel{
-		MeanInterarrival:    mean,
-		ExpectedLastArrival: lastArrival,
-		ExpectedDuration:    duration,
-		Throughput:          float64(n) / duration,
-		AverageResponseTime: serviceTime,
-	}, nil
-}
-
-func erlangC(offeredLoad float64, servers int, utilization float64) float64 {
-	term := 1.0
-	sum := term
-	for n := 1; n < servers; n++ {
-		term *= offeredLoad / float64(n)
-		sum += term
-	}
-	tail := term * offeredLoad / float64(servers) / (1 - utilization)
-	return tail / (sum + tail)
+	return pmf
 }

@@ -18,15 +18,18 @@ RESULT_COLUMNS = {
     "trials",
     "mean_throughput",
     "std_throughput",
-    "finite_horizon_throughput",
-    "stationary_throughput",
+    "analytical_throughput",
     "mean_response_time",
     "std_response_time",
-    "finite_horizon_response_time",
-    "stationary_response_time",
+    "analytical_response_time",
+    "no_queue_response_time",
+    "mean_utilization",
+    "std_utilization",
+    "analytical_utilization",
     "mean_completed",
     "mean_unfinished",
-    "utilization",
+    "mean_rejected_full",
+    "mean_backup_activations",
     "throughput_absolute_error",
     "response_absolute_error",
 }
@@ -142,16 +145,24 @@ def plot_metrics(results: pd.DataFrame, output: Path) -> None:
             color=COLORS[policy],
             label=POLICY_LABELS[policy],
         )
-    finite = results.sort_values("burst_size").drop_duplicates("burst_size")
+    model = results.sort_values("burst_size").drop_duplicates("burst_size")
     axes[0].plot(
-        finite["burst_size"],
-        finite["finite_horizon_throughput"],
+        model["burst_size"],
+        model["analytical_throughput"],
         linestyle="--",
         linewidth=1.8,
         color="#292929",
-        label="Finite-horizon model",
+        label="Finite-batch model",
     )
-    axes[1].axhline(SERVICE_TIME, linestyle="--", linewidth=1.8, color="#292929", label="Service time / finite-horizon")
+    axes[1].plot(
+        model["burst_size"],
+        model["analytical_response_time"],
+        linestyle="--",
+        linewidth=1.8,
+        color="#292929",
+        label="Instantaneous-batch model",
+    )
+    axes[1].axhline(SERVICE_TIME, linestyle=":", linewidth=1.5, color="#6b6b6b", label="No-queue lower bound")
     axes[0].set_ylabel("Throughput (req / time)")
     axes[1].set_ylabel("Mean response time")
     axes[1].set_xlabel("Burst size (requests)")
@@ -168,16 +179,15 @@ def plot_model_comparison(results: pd.DataFrame, output: Path) -> None:
     figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.1), constrained_layout=True)
     selected = results.loc[results["policy"] == "round_robin"].sort_values("burst_size")
     bursts = selected["burst_size"].to_numpy()
-    width = 8
-    axes[0].bar(bursts - width, selected["mean_throughput"], width=width, color="#2878b5", label="Simulation")
-    axes[0].bar(bursts, selected["finite_horizon_throughput"], width=width, color="#2b9348", label="Finite-horizon")
-    axes[0].bar(bursts + width, selected["stationary_throughput"], width=width, color="#6b6b6b", label="Stationary 1/3")
+    width = 10
+    axes[0].bar(bursts - width / 2, selected["mean_throughput"], width=width, color="#2878b5", label="Simulation")
+    axes[0].bar(bursts + width / 2, selected["analytical_throughput"], width=width, color="#2b9348", label="Finite-batch model")
     axes[1].bar(bursts - width, selected["mean_response_time"], width=width, color="#2878b5", label="Simulation")
-    axes[1].bar(bursts, selected["finite_horizon_response_time"], width=width, color="#2b9348", label="Finite-horizon")
-    axes[1].bar(bursts + width, selected["stationary_response_time"], width=width, color="#6b6b6b", label="Stationary 1/3")
-    axes[0].set_title("Throughput vs analytical models")
-    axes[1].set_title("Response time vs analytical models")
-    axes[0].set_ylabel("Throughput")
+    axes[1].bar(bursts, selected["no_queue_response_time"], width=width, color="#6b6b6b", label="No-queue lower bound")
+    axes[1].bar(bursts + width, selected["analytical_response_time"], width=width, color="#2b9348", label="Instantaneous-batch model")
+    axes[0].set_title("Fixed-horizon throughput")
+    axes[1].set_title("Transient response-time comparison")
+    axes[0].set_ylabel("Throughput (req / time)")
     axes[1].set_ylabel("Response time")
     axes[1].set_xlabel("Burst size (requests)")
     for axis in axes:
@@ -251,8 +261,8 @@ def plot_model_error(results: pd.DataFrame, output: Path) -> None:
     for policy, group in results.groupby("policy", sort=False):
         ordered = group.sort_values("burst_size")
         for axis, sim, theory, label in (
-            (axes[0], "mean_throughput", "stationary_throughput", "Absolute throughput error vs stationary"),
-            (axes[1], "mean_response_time", "stationary_response_time", "Absolute response-time error vs stationary"),
+            (axes[0], "mean_throughput", "analytical_throughput", "Absolute throughput error"),
+            (axes[1], "mean_response_time", "analytical_response_time", "Gap to instantaneous-batch model"),
         ):
             axis.plot(
                 ordered["burst_size"],
@@ -267,7 +277,7 @@ def plot_model_error(results: pd.DataFrame, output: Path) -> None:
             axis.grid(alpha=0.25)
             axis.legend(fontsize=8)
     axes[0].set_title("Simulation-model throughput gap")
-    axes[1].set_title("Simulation-model response-time gap")
+    axes[1].set_title("Simulation-transient-model gap")
     figure.savefig(output, dpi=220)
     plt.close(figure)
 
