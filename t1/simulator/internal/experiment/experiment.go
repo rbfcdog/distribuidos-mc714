@@ -152,10 +152,14 @@ func policyStream(policy balancer.Policy) uint64 {
 		return 0xa24baed4963ee407
 	case balancer.RoundRobin:
 		return 0x9fb21c651e98df25
+	case balancer.WeightedRoundRobin:
+		return 0xd1b54a32d192ed03
 	case balancer.ShortestQueue:
 		return 0xc13fa9a902a6328f
 	case balancer.LeastWork:
 		return 0x91e10da5c79e7b1d
+	case balancer.PowerOfTwo:
+		return 0x94d049bb133111eb
 	default:
 		return 0
 	}

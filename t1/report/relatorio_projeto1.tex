@@ -32,7 +32,7 @@ MC714, Sistemas Distribuídos, Universidade Estadual de Campinas}}
 \maketitle
 
 \begin{abstract}
-Este trabalho implementa e avalia um balanceador de carga para três servidores. O simulador orientado a eventos discretos recebe rajadas Bounded Pareto e compara as políticas Aleatória, Round Robin e Fila Mais Curta. Cada servidor homogêneo executa até quinze requisições simultâneas, com serviço determinístico de $0{,}05$. Cada cenário usa horizonte fixo de 200 unidades e dez repetições. A análise emprega um modelo transiente de lote finito com roteamento justo, evitando hipóteses de regime estacionário incompatíveis com a rajada. Também são avaliados servidores heterogêneos, roteamento ciente de capacidade e um servidor de backup para estouro de buffers.
+Este trabalho implementa e avalia um balanceador de carga para três servidores. O simulador orientado a eventos discretos recebe rajadas Bounded Pareto e compara as políticas Aleatória, Round Robin e Fila Mais Curta. Cada servidor homogêneo executa até quinze requisições simultâneas, com serviço determinístico de $0{,}05$. Cada cenário usa horizonte fixo de 200 unidades e dez repetições. A análise emprega um modelo transiente de lote finito com roteamento justo, evitando hipóteses de regime estacionário incompatíveis com a rajada. Como extensões, são avaliados servidores heterogêneos, Round Robin Ponderado, Trabalho Mínimo, Poder de Duas Escolhas e um servidor de backup para estouro de buffers.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -123,13 +123,59 @@ A Fig.~\ref{fig:model} evidencia a comparação correta de horizonte. A vazão a
 \label{fig:model}
 \end{figure}
 
-\subsection{Pontos extras}
-Servidores heterogêneos foram configurados como $(c_s,S_s)=(10,0{,}06)$, $(15,0{,}05)$ e $(20,0{,}04)$. A política Trabalho Mínimo escolhe o menor valor $(a_s+q_s+1)S_s/c_s$, incorporando ocupação, fila, capacidade e velocidade. Em $N=120$, ela mantém $\Theta=0{,}60$ e reduz a resposta de $0{,}06349$ (Round Robin) para $0{,}04815$.
+\clearpage
+\section{Extensões e políticas adicionais}
+\subsection{Servidores heterogêneos}
+O primeiro extra substitui os três servidores idênticos por $(c_s,S_s)=(10,0{,}06)$, $(15,0{,}05)$ e $(20,0{,}04)$. Assim, a taxa nominal $c_s/S_s$ varia entre $166{,}7$ e $500$ requisições por unidade. Round Robin continua atribuindo um terço da carga a cada destino e, portanto, ignora essa diferença.
 
-No segundo extra, cada primário possui buffer para duas requisições. Sem backup, há em média 5,9 rejeições e $\Theta=0{,}5705$. Um quarto servidor de backup, excluído do roteamento normal, é acionado somente quando o destino primário não admite outra requisição. Ele recebe em média 5,9 requisições, elimina as rejeições e restaura $\Theta=0{,}60$, com resposta $0{,}05108$.
+Foram implementadas três políticas adicionais. Round Robin Ponderado usa peso $w_s=c_s/S_s$ e o algoritmo suave: a cada decisão, soma-se $w_s$ ao acumulador de cada servidor, escolhe-se o maior acumulador e subtrai-se $\sum_s w_s$ do vencedor. Trabalho Mínimo escolhe
+\begin{equation}
+ s^*=\arg\min_s\frac{(a_s+q_s+1)S_s}{c_s},
+\end{equation}
+onde $a_s$ e $q_s$ são ocupação e fila. Poder de Duas Escolhas sorteia dois primários distintos e aplica o mesmo escore apenas ao par. A decisão compara somente dois candidatos; o simulador ainda registra todos os estados para produzir os traços exigidos.
+
+\begin{table}[!t]
+\caption{Políticas adicionais em servidores heterogêneos, $N=120$.}
+\label{tab:extras}
+\centering
+\scriptsize
+\begin{tabular}{lrrr}
+\toprule
+Política & $\Theta$ & Resposta & Redução vs. RR \\
+\midrule
+Round Robin & 0,600 & 0,06349 & 0,0\% \\
+RR Ponderado & 0,600 & 0,04820 & 24,1\% \\
+Trabalho Mínimo & 0,600 & 0,04815 & 24,2\% \\
+Poder de Duas & 0,600 & 0,04820 & 24,1\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Tabela~\ref{tab:extras} mostra que todas concluem 120 requisições, logo a vazão continua $0{,}60$. A diferença está no atraso: Round Robin sobrecarrega o servidor mais lento, enquanto as três políticas cientes de capacidade obtêm resposta próxima. Trabalho Mínimo é ligeiramente melhor, mas consulta todos os servidores; Poder de Duas aproxima seu resultado observando somente dois.
+
+\subsection{Buffers finitos e backup}
+No segundo extra, cada primário tem buffer para duas requisições. Sem backup, a execução rejeita em média 5,9 requisições e produz $\Theta=0{,}5705$. Um quarto servidor $(c,S)=(15,0{,}05)$ fica fora do conjunto de roteamento normal. Quando o primário selecionado não possui posição nem buffer, a requisição é desviada ao backup. Em média, ocorrem 5,9 acionamentos, nenhuma rejeição, $\Theta=0{,}60$ e resposta $0{,}05108$.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/extras_comparison.png}
+\caption{Políticas para servidores heterogêneos e efeito do backup com buffers finitos.}
+\label{fig:extras}
+\end{figure}
+
+\clearpage
+\section{Validação e limitações}
+A validação possui quatro níveis. Primeiro, testes determinísticos exercitam precedência de partidas, capacidade simultânea, formação de fila, término no horizonte, integral de ocupação, rejeição e ativação do backup. Segundo, testes de política verificam ciclos independentes, desempates, exclusão do backup, proporção ponderada $1{:}2{:}3$ e escolha do menos carregado entre dois destinos. Terceiro, sementes separadas garantem tráfego idêntico entre políticas. Por fim, os CSVs são regenerados diretamente pelo executável e os gráficos apenas transformam esses dados.
+
+O modelo analítico e a simulação não são artificialmente forçados a coincidir no tempo de resposta. O modelo concentra o lote em $t=0$ e calcula exatamente sua ocupação binomial; a simulação preserva intervalos Bounded Pareto positivos. Portanto, $R_0$ é uma referência transiente de concentração, não uma previsão estacionária nem um ajuste aos dados. A igualdade de vazão decorre somente de todas as requisições terminarem antes de $T$.
+
+O mapeamento $\alpha=3-2\mathcal{H}$ segue a parametrização solicitada, mas amostras independentes de uma distribuição marginal não demonstram, isoladamente, dependência de longa duração. Assim, o trabalho não afirma ter estimado $\mathcal{H}$ a partir do traço; ele usa $\mathcal{H}=0{,}8$ para definir o expoente Pareto. Uma avaliação explícita de autocorrelação exigiria um gerador correlacionado adicional, fora do enunciado.
+
+\newpage
+Os dez ensaios satisfazem o número pedido, mas ainda produzem incerteza visível no roteamento aleatório. Reportam-se média e desvio-padrão, sem interpretar diferenças menores que essa dispersão como vantagem conclusiva. Nos cenários de backup, utilização considera toda a capacidade provisionada, inclusive o servidor de reserva, escolha conservadora para planejamento de recursos.
 
 \section{Conclusão}
-O simulador implementa as três políticas obrigatórias, capacidade concorrente, filas finitas, monitoramento e dez repetições. O horizonte fixo corrige a interpretação de vazão e utilização: as rajadas são curtas e o sistema fica ocioso na maior parte das 200 unidades. O modelo binomial transiente preserva população finita, roteamento $1/3$ e ondas de serviço, oferecendo uma comparação compatível com o experimento. Os extras demonstram ganho de roteamento ciente de capacidade e recuperação de estouro por backup.
+O simulador implementa as três políticas obrigatórias, capacidade concorrente, filas finitas, monitoramento e dez repetições. O horizonte fixo corrige a interpretação de vazão e utilização: as rajadas são curtas e o sistema fica ocioso na maior parte das 200 unidades. O modelo binomial transiente preserva população finita, roteamento $1/3$ e ondas de serviço. Nos extras, políticas cientes de capacidade reduzem o atraso em aproximadamente $24\%$ nos servidores heterogêneos, e o backup elimina perdas provocadas por buffers cheios.
 
 \section*{Divisão de trabalho}
 \textbf{Rodrigo Camargo}: simulador, políticas, tráfego, métricas, extensões e testes. \textbf{André Loubet}: redação, organização e revisão do relatório, gráficos e comparação analítica.
@@ -139,6 +185,8 @@ O simulador implementa as três políticas obrigatórias, capacidade concorrente
 C. A. Astudillo Trujillo e D. M. da Cunha, ``Trabalho 1: Balanceador de Carga para um Sistema Distribuído,'' MC714, Unicamp, ago. 2026.
 \bibitem{ross}
 S. M. Ross, \textit{Introduction to Probability Models}, 12th ed. Academic Press, 2019.
+\bibitem{mitzenmacher}
+M. Mitzenmacher, ``The Power of Two Choices in Randomized Load Balancing,'' \textit{IEEE Transactions on Parallel and Distributed Systems}, vol. 12, no. 10, pp. 1094--1104, 2001.
 \end{thebibliography}
 
 \end{document}

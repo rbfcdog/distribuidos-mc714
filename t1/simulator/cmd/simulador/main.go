@@ -101,18 +101,20 @@ func runOptionalScenarios(seed uint64) []extraResult {
 		config engine.Config
 	}{
 		{"heterogeneous_round_robin", engine.HeterogeneousConfig(balancer.RoundRobin, 120)},
+		{"heterogeneous_weighted_round_robin", engine.HeterogeneousConfig(balancer.WeightedRoundRobin, 120)},
 		{"heterogeneous_least_work", engine.HeterogeneousConfig(balancer.LeastWork, 120)},
+		{"heterogeneous_power_of_two", engine.HeterogeneousConfig(balancer.PowerOfTwo, 120)},
 		{"bounded_buffers", engine.BoundedBufferConfig(balancer.ShortestQueue, 120, false)},
 		{"bounded_buffers_with_backup", engine.BoundedBufferConfig(balancer.ShortestQueue, 120, true)},
 	}
 
 	fmt.Println("\noptional scenarios")
-	fmt.Println("scenario                       policy          throughput  response  rejected  backup activations")
+	fmt.Println("scenario                              policy                    throughput  response  rejected  backup activations")
 	results := make([]extraResult, 0, len(scenarios))
 	for _, scenario := range scenarios {
 		summary := mustRun(scenario.config, seed)
 		results = append(results, extraResult{name: scenario.name, config: scenario.config, summary: summary})
-		fmt.Printf("%-30s %-15s %10.3f  %8.5f  %8.1f  %18.1f\n",
+		fmt.Printf("%-37s %-25s %10.3f  %8.5f  %8.1f  %18.1f\n",
 			scenario.name, scenario.config.Policy, summary.MeanThroughput, summary.MeanResponseTime,
 			summary.MeanRejectedFull, summary.MeanBackupActivations)
 	}

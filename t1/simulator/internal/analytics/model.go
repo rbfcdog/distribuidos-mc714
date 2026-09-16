@@ -36,8 +36,8 @@ func Calculate(requestCount int, horizon float64, servers []Server) (Model, erro
 	if requestCount <= 0 {
 		return Model{}, fmt.Errorf("request count must be positive: %d", requestCount)
 	}
-	if horizon <= 0 {
-		return Model{}, fmt.Errorf("horizon must be positive: %g", horizon)
+	if horizon <= 0 || math.IsNaN(horizon) || math.IsInf(horizon, 0) {
+		return Model{}, fmt.Errorf("horizon must be finite and positive: %g", horizon)
 	}
 	if len(servers) == 0 {
 		return Model{}, fmt.Errorf("at least one primary server is required")
@@ -46,8 +46,8 @@ func Calculate(requestCount int, horizon float64, servers []Server) (Model, erro
 	totalCapacity := 0
 	noQueueResponse := 0.0
 	for index, server := range servers {
-		if server.Capacity <= 0 || server.ServiceTime <= 0 {
-			return Model{}, fmt.Errorf("server %d capacity and service time must be positive", index)
+		if server.Capacity <= 0 || server.ServiceTime <= 0 || math.IsNaN(server.ServiceTime) || math.IsInf(server.ServiceTime, 0) {
+			return Model{}, fmt.Errorf("server %d capacity and service time must be finite and positive", index)
 		}
 		totalCapacity += server.Capacity
 		noQueueResponse += server.ServiceTime / float64(len(servers))
@@ -108,6 +108,13 @@ func binomialPMF(n int, probability float64) []float64 {
 	ratio := probability / (1 - probability)
 	for k := 1; k <= n; k++ {
 		pmf[k] = pmf[k-1] * float64(n-k+1) / float64(k) * ratio
+	}
+	sum := 0.0
+	for _, mass := range pmf {
+		sum += mass
+	}
+	for k := range pmf {
+		pmf[k] /= sum
 	}
 	return pmf
 }

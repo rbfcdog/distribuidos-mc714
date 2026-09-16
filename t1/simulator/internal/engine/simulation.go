@@ -156,6 +156,7 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 	result.Samples = appendSamples(result.Samples, 0, servers)
 	clock := 0.0
 	var totalResponseTime float64
+	states := make([]balancer.ServerState, len(servers))
 
 	for events.Len() > 0 {
 		next := heap.Pop(&events).(event)
@@ -169,7 +170,7 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 
 		switch next.kind {
 		case arrivalEvent:
-			states := routingStates(servers)
+			updateRoutingStates(states, servers)
 			serverID := router.Route(states)
 			if !servers[serverID].canAdmit() {
 				serverID = selectBackup(servers)
@@ -243,16 +244,16 @@ func (cfg Config) validate() error {
 	if cfg.RequestCount <= 0 {
 		return fmt.Errorf("request count must be positive: %d", cfg.RequestCount)
 	}
-	if cfg.Horizon <= 0 {
-		return fmt.Errorf("horizon must be positive: %g", cfg.Horizon)
+	if !positiveFinite(cfg.Horizon) {
+		return fmt.Errorf("horizon must be finite and positive: %g", cfg.Horizon)
 	}
 	if len(cfg.Servers) == 0 {
 		return fmt.Errorf("at least one server is required")
 	}
 	primaryCount := 0
 	for index, server := range cfg.Servers {
-		if server.Capacity <= 0 || server.ServiceTime <= 0 {
-			return fmt.Errorf("server %d capacity and service time must be positive", index)
+		if server.Capacity <= 0 || !positiveFinite(server.ServiceTime) {
+			return fmt.Errorf("server %d capacity and service time must be finite and positive", index)
 		}
 		if server.BufferCapacity < 0 {
 			return fmt.Errorf("server %d buffer capacity cannot be negative", index)
@@ -264,10 +265,17 @@ func (cfg Config) validate() error {
 	if primaryCount == 0 {
 		return fmt.Errorf("at least one primary server is required")
 	}
-	if cfg.InterArrival.Lower <= 0 || cfg.InterArrival.Upper < cfg.InterArrival.Lower || cfg.InterArrival.Alpha <= 0 {
+	if !positiveFinite(cfg.InterArrival.Lower) ||
+		!positiveFinite(cfg.InterArrival.Upper) ||
+		cfg.InterArrival.Upper < cfg.InterArrival.Lower ||
+		!positiveFinite(cfg.InterArrival.Alpha) {
 		return fmt.Errorf("invalid bounded Pareto inter-arrival distribution")
 	}
 	return nil
+}
+
+func positiveFinite(value float64) bool {
+	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 func defaultArrivalProcess() mathutil.BoundedPareto {
@@ -308,8 +316,7 @@ func (s server) load() int {
 	return s.active + len(s.queue)
 }
 
-func routingStates(servers []server) []balancer.ServerState {
-	states := make([]balancer.ServerState, len(servers))
+func updateRoutingStates(states []balancer.ServerState, servers []server) {
 	for index := range servers {
 		states[index] = balancer.ServerState{
 			Active: servers[index].active, Queued: len(servers[index].queue),
@@ -317,7 +324,6 @@ func routingStates(servers []server) []balancer.ServerState {
 			Backup: servers[index].config.Backup,
 		}
 	}
-	return states
 }
 
 func selectBackup(servers []server) int {
@@ -374,7 +380,7 @@ type eventQueue []event
 
 func (q eventQueue) Len() int { return len(q) }
 func (q eventQueue) Less(i, j int) bool {
-	if math.Abs(q[i].time-q[j].time) > 1e-12 {
+	if q[i].time != q[j].time {
 		return q[i].time < q[j].time
 	}
 	if q[i].kind != q[j].kind {

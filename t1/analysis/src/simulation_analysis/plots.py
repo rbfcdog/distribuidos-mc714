@@ -47,6 +47,16 @@ TRIAL_COLUMNS = {
 }
 TRACE_COLUMNS = {"policy", "burst_size", "time", "server_id", "active", "queue_length", "completed"}
 TRAFFIC_COLUMNS = {"burst_size", "index", "interarrival"}
+EXTRA_COLUMNS = {
+    "scenario",
+    "policy",
+    "servers",
+    "mean_throughput",
+    "mean_response_time",
+    "mean_utilization",
+    "mean_rejected_full",
+    "mean_backup_activations",
+}
 POLICY_LABELS = {
     "random": "Random",
     "round_robin": "Round robin",
@@ -66,6 +76,7 @@ def main() -> None:
     parser.add_argument("--trials", type=Path, default=Path("data/trials.csv"))
     parser.add_argument("--trace", type=Path, default=Path("data/server_trace.csv"))
     parser.add_argument("--traffic", type=Path, default=Path("data/traffic.csv"))
+    parser.add_argument("--extras", type=Path, default=Path("data/extras.csv"))
     parser.add_argument("--output", type=Path, default=Path("figures"))
     args = parser.parse_args()
 
@@ -73,6 +84,7 @@ def main() -> None:
     trials = read_csv(args.trials, TRIAL_COLUMNS)
     trace = read_csv(args.trace, TRACE_COLUMNS)
     traffic = read_csv(args.traffic, TRAFFIC_COLUMNS)
+    extras = read_csv(args.extras, EXTRA_COLUMNS)
     args.output.mkdir(parents=True, exist_ok=True)
 
     plot_traffic(traffic, args.output / "traffic_bounded_pareto.png")
@@ -84,6 +96,7 @@ def main() -> None:
     plot_queue_dynamics(trace, args.output / "queue_dynamics_burst_120.png")
     plot_relative_performance(results, args.output / "relative_policy_performance.png")
     plot_model_error(results, args.output / "model_comparison_error.png")
+    plot_extras(extras, args.output / "extras_comparison.png")
 
 
 def read_csv(path: Path, required_columns: set[str]) -> pd.DataFrame:
@@ -194,6 +207,64 @@ def plot_model_comparison(results: pd.DataFrame, output: Path) -> None:
         axis.set_xticks(bursts)
         axis.grid(axis="y", alpha=0.25)
         axis.legend(fontsize=7)
+    figure.savefig(output, dpi=220)
+    plt.close(figure)
+
+
+def plot_extras(extras: pd.DataFrame, output: Path) -> None:
+    heterogeneous = extras.loc[extras["scenario"].str.startswith("heterogeneous_")].copy()
+    buffers = extras.loc[extras["scenario"].str.startswith("bounded_buffers")].copy()
+    if heterogeneous.empty or buffers.empty:
+        raise ValueError("extras data must contain heterogeneous and bounded-buffer scenarios")
+
+    heterogeneous_labels = {
+        "heterogeneous_round_robin": "Round robin",
+        "heterogeneous_weighted_round_robin": "Weighted RR",
+        "heterogeneous_least_work": "Least work",
+        "heterogeneous_power_of_two": "Power of two",
+    }
+    heterogeneous["label"] = heterogeneous["scenario"].map(heterogeneous_labels)
+    heterogeneous = heterogeneous.dropna(subset=["label"])
+    buffers["label"] = buffers["scenario"].map(
+        {
+            "bounded_buffers": "No backup",
+            "bounded_buffers_with_backup": "With backup",
+        }
+    )
+
+    figure, axes = plt.subplots(1, 2, figsize=(8.2, 3.15), constrained_layout=True)
+    axes[0].bar(
+        heterogeneous["label"],
+        heterogeneous["mean_response_time"],
+        color=["#6b6b6b", "#2878b5", "#2b9348", "#7b2cbf"],
+    )
+    axes[0].set_ylabel("Mean response time")
+    axes[0].set_title("Heterogeneous servers, burst 120")
+    axes[0].tick_params(axis="x", rotation=22)
+    axes[0].set_ylim(0.04, max(heterogeneous["mean_response_time"]) * 1.08)
+
+    positions = np.arange(len(buffers))
+    width = 0.34
+    axes[1].bar(
+        positions - width / 2,
+        buffers["mean_rejected_full"],
+        width=width,
+        color="#b54747",
+        label="Rejected",
+    )
+    axes[1].bar(
+        positions + width / 2,
+        buffers["mean_backup_activations"],
+        width=width,
+        color="#2b9348",
+        label="Backup activations",
+    )
+    axes[1].set_xticks(positions, buffers["label"])
+    axes[1].set_ylabel("Requests per trial")
+    axes[1].set_title("Finite buffers, burst 120")
+    axes[1].legend(fontsize=8)
+    for axis in axes:
+        axis.grid(axis="y", alpha=0.25)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 

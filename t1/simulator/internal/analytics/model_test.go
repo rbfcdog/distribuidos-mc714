@@ -39,8 +39,23 @@ func TestCalculateFiniteBatchModelsFairRandomRouting(t *testing.T) {
 	}
 }
 
+func TestBinomialPMFIsNormalized(t *testing.T) {
+	pmf := binomialPMF(120, 1.0/3.0)
+	sum := 0.0
+	for _, probability := range pmf {
+		sum += probability
+	}
+	if math.Abs(sum-1) > 1e-15 {
+		t.Fatalf("probability mass sums to %.17g, want normalized mass 1", sum)
+	}
+}
+
 func TestCalculateRejectsMissingPrimaryServers(t *testing.T) {
 	if _, err := Calculate(30, 200, nil); err == nil {
 		t.Fatal("Calculate accepted an empty server set")
+	}
+	servers := []Server{{Capacity: 15, ServiceTime: 0.05}}
+	if _, err := Calculate(30, math.NaN(), servers); err == nil {
+		t.Fatal("Calculate accepted a NaN horizon")
 	}
 }
