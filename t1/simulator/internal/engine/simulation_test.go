@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"container/heap"
 	"math"
 	rand "math/rand/v2"
 	"testing"
@@ -109,6 +110,34 @@ func TestDefaultConfigMatchesAssignmentParameters(t *testing.T) {
 	}
 	if cfg.InterArrival.Alpha != 1.4 {
 		t.Fatalf("alpha = %g, want Hurst-derived 1.4", cfg.InterArrival.Alpha)
+	}
+}
+
+func TestRunRejectsNonFiniteConfiguration(t *testing.T) {
+	cfg := DefaultConfig(balancer.RoundRobin, 30)
+	cfg.Horizon = math.NaN()
+	if _, err := Run(cfg, newRNG(1), newRNG(2)); err == nil {
+		t.Fatal("Run accepted a NaN horizon")
+	}
+}
+
+func TestEventQueueOrdersNearDistinctTimesStrictly(t *testing.T) {
+	queue := eventQueue{
+		{time: 1.5e-12, sequence: 0},
+		{time: 0, sequence: 2},
+		{time: 0.75e-12, sequence: 1},
+	}
+	if !queue.Less(1, 2) {
+		t.Fatal("earlier event must sort first even when timestamps are very close")
+	}
+	heap.Init(&queue)
+	previous := -1.0
+	for queue.Len() > 0 {
+		next := heap.Pop(&queue).(event)
+		if next.time < previous {
+			t.Fatalf("event time %g followed %g", next.time, previous)
+		}
+		previous = next.time
 	}
 }
 

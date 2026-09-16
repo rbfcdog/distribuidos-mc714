@@ -1,5 +1,7 @@
 scenario,policy,servers,mean_throughput,mean_response_time,mean_utilization,mean_rejected_full,mean_backup_activations
 heterogeneous_round_robin,round_robin,primary:c10/s0.060/b120;primary:c15/s0.050/b120;primary:c20/s0.040/b120,0.5999999999999999,0.06349263372781189,0.0006666666666666669,0,0
+heterogeneous_weighted_round_robin,weighted_round_robin,primary:c10/s0.060/b120;primary:c15/s0.050/b120;primary:c20/s0.040/b120,0.5999999999999999,0.04820373682549279,0.0006211111111111112,0,0
 heterogeneous_least_work,least_work,primary:c10/s0.060/b120;primary:c15/s0.050/b120;primary:c20/s0.040/b120,0.5999999999999999,0.04815403486335371,0.000610777777777778,0,0
+heterogeneous_power_of_two,power_of_two,primary:c10/s0.060/b120;primary:c15/s0.050/b120;primary:c20/s0.040/b120,0.5999999999999999,0.04820374145149962,0.0006134444444444445,0,0
 bounded_buffers,shortest_queue,primary:c15/s0.050/b2;primary:c15/s0.050/b2;primary:c15/s0.050/b2,0.5705,0.051140037313791284,0.0006338888888888889,5.9,0
 bounded_buffers_with_backup,shortest_queue,primary:c15/s0.050/b2;primary:c15/s0.050/b2;primary:c15/s0.050/b2;backup:c15/s0.050/b120,0.5999999999999999,0.051084053470495064,0.0005000000000000001,0,5.9

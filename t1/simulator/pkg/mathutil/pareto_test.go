@@ -1,6 +1,7 @@
 package mathutil
 
 import (
+	"math"
 	rand "math/rand/v2"
 	"testing"
 )
@@ -36,5 +37,20 @@ func TestDegenerateDistributionHasZeroVariance(t *testing.T) {
 	}
 	if got := distribution.Variance(); got != 0 {
 		t.Fatalf("variance = %g, want 0", got)
+	}
+}
+
+func TestBoundedParetoRejectsNonFiniteParameters(t *testing.T) {
+	for _, parameters := range [][3]float64{
+		{math.NaN(), 1, 1.4},
+		{0.001, math.Inf(1), 1.4},
+		{0.001, 1, math.NaN()},
+	} {
+		if _, err := NewBoundedPareto(parameters[0], parameters[1], parameters[2]); err == nil {
+			t.Fatalf("NewBoundedPareto accepted non-finite parameters %v", parameters)
+		}
+	}
+	if _, err := AlphaForHurst(math.NaN()); err == nil {
+		t.Fatal("AlphaForHurst accepted NaN")
 	}
 }

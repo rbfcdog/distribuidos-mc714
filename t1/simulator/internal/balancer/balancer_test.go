@@ -44,6 +44,49 @@ func TestLeastWorkAccountsForHeterogeneousCapacityAndSpeed(t *testing.T) {
 	}
 }
 
+func TestWeightedRoundRobinFollowsHeterogeneousServiceRates(t *testing.T) {
+	router, err := NewRouter(WeightedRoundRobin, rand.New(rand.NewPCG(1, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := []ServerState{
+		{Capacity: 1, ServiceTime: 1},
+		{Capacity: 2, ServiceTime: 1},
+		{Capacity: 3, ServiceTime: 1},
+		{Capacity: 100, ServiceTime: 0.01, Backup: true},
+	}
+	counts := make([]int, len(states))
+	for range 12 {
+		counts[router.Route(states)]++
+	}
+	if counts[0] != 2 || counts[1] != 4 || counts[2] != 6 || counts[3] != 0 {
+		t.Fatalf("weighted assignments = %v, want [2 4 6 0]", counts)
+	}
+}
+
+func TestPowerOfTwoChoosesLessLoadedOfTwoPrimaries(t *testing.T) {
+	router, err := NewRouter(PowerOfTwo, rand.New(rand.NewPCG(1, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := []ServerState{
+		{Active: 8, Queued: 2, Capacity: 10, ServiceTime: 0.05},
+		{Active: 2, Capacity: 10, ServiceTime: 0.05},
+		{Capacity: 100, ServiceTime: 0.01, Backup: true},
+	}
+	for range 20 {
+		if got := router.Route(states); got != 1 {
+			t.Fatalf("route = %d, want less-loaded primary server 1", got)
+		}
+	}
+}
+
+func TestPowerOfTwoRequiresRandomSource(t *testing.T) {
+	if _, err := NewRouter(PowerOfTwo, nil); err == nil {
+		t.Fatal("NewRouter accepted power-of-two policy without random source")
+	}
+}
+
 func TestInvalidPolicyIsRejected(t *testing.T) {
 	if _, err := NewRouter(Policy("unknown"), rand.New(rand.NewPCG(1, 2))); err == nil {
 		t.Fatal("NewRouter accepted an unsupported policy")

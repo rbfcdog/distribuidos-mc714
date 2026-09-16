@@ -16,14 +16,14 @@ type BoundedPareto struct {
 
 // NewBoundedPareto validates the distribution parameters.
 func NewBoundedPareto(lower, upper, alpha float64) (BoundedPareto, error) {
-	if lower <= 0 {
-		return BoundedPareto{}, fmt.Errorf("bounded Pareto lower bound must be positive: %g", lower)
+	if !isFinite(lower) || lower <= 0 {
+		return BoundedPareto{}, fmt.Errorf("bounded Pareto lower bound must be finite and positive: %g", lower)
 	}
-	if upper < lower {
-		return BoundedPareto{}, fmt.Errorf("bounded Pareto upper bound %g is below lower bound %g", upper, lower)
+	if !isFinite(upper) || upper < lower {
+		return BoundedPareto{}, fmt.Errorf("bounded Pareto upper bound %g must be finite and not below lower bound %g", upper, lower)
 	}
-	if alpha <= 0 {
-		return BoundedPareto{}, fmt.Errorf("bounded Pareto alpha must be positive: %g", alpha)
+	if !isFinite(alpha) || alpha <= 0 {
+		return BoundedPareto{}, fmt.Errorf("bounded Pareto alpha must be finite and positive: %g", alpha)
 	}
 	return BoundedPareto{Lower: lower, Upper: upper, Alpha: alpha}, nil
 }
@@ -68,8 +68,12 @@ func (p BoundedPareto) moment(order float64) float64 {
 // AlphaForHurst derives the common heavy-tail approximation alpha = 3 - 2H,
 // valid for 0.5 < H < 1 and 1 < alpha < 2.
 func AlphaForHurst(hurst float64) (float64, error) {
-	if hurst <= 0.5 || hurst >= 1 {
+	if !isFinite(hurst) || hurst <= 0.5 || hurst >= 1 {
 		return 0, fmt.Errorf("Hurst parameter must be in (0.5, 1): %g", hurst)
 	}
 	return 3 - 2*hurst, nil
+}
+
+func isFinite(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
