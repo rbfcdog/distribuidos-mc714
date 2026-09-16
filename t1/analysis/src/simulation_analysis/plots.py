@@ -191,7 +191,7 @@ def plot_metrics(results: pd.DataFrame, output: Path) -> None:
 
 def plot_model_comparison(results: pd.DataFrame, output: Path) -> None:
     figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.1), constrained_layout=True)
-    selected = results.loc[results["policy"] == "round_robin"].sort_values("burst_size")
+    selected = results.loc[results["policy"] == "random"].sort_values("burst_size")
     bursts = selected["burst_size"].to_numpy()
     width = 10
     axes[0].bar(bursts - width / 2, selected["mean_throughput"], width=width, color="#2878b5", label="Simulation")

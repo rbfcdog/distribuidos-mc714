@@ -46,8 +46,9 @@ type Summary struct {
 	Representative          engine.Result
 }
 
-// Run executes independent simulations. The traffic seed depends only on trial
-// number, so every policy sees the same arrival trace in a trial.
+// Run executes independent simulations. Traffic streams depend on burst size
+// and trial, but not policy, enabling paired policy comparisons without reusing
+// the same arrival prefix across different burst-size experiments.
 func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	if trials <= 0 {
 		return Summary{}, fmt.Errorf("trial count must be positive: %d", trials)
@@ -77,8 +78,9 @@ func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	responses := make([]float64, 0, trials)
 	utilizations := make([]float64, 0, trials)
 	for trial := range trials {
-		trafficRNG := rand.New(rand.NewPCG(seed+uint64(trial), 0x9e3779b97f4a7c15))
-		routingRNG := rand.New(rand.NewPCG(seed+uint64(trial), policyStream(cfg.Policy)))
+		runSeed := scenarioSeed(seed, cfg.RequestCount, trial)
+		trafficRNG := rand.New(rand.NewPCG(runSeed, 0x9e3779b97f4a7c15))
+		routingRNG := rand.New(rand.NewPCG(runSeed, policyStream(cfg.Policy)))
 		result, err := engine.Run(cfg, trafficRNG, routingRNG)
 		if err != nil {
 			return Summary{}, fmt.Errorf("trial %d: %w", trial+1, err)
@@ -144,6 +146,12 @@ func sampleStd(values []float64) float64 {
 		sumSquares += delta * delta
 	}
 	return math.Sqrt(sumSquares / float64(len(values)-1))
+}
+
+func scenarioSeed(seed uint64, requestCount, trial int) uint64 {
+	const burstStride = uint64(0xd2b74407b1ce6e93)
+	const trialStride = uint64(0xca5a826395121157)
+	return seed ^ uint64(requestCount)*burstStride ^ uint64(trial)*trialStride
 }
 
 func policyStream(policy balancer.Policy) uint64 {

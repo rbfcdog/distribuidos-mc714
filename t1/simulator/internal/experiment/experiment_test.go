@@ -2,6 +2,7 @@ package experiment
 
 import (
 	"math"
+	"slices"
 	"testing"
 
 	"mc714-t1/internal/balancer"
@@ -28,6 +29,28 @@ func TestRunAggregatesRequestedTrialCount(t *testing.T) {
 	}
 	if len(summary.Representative.Samples) == 0 {
 		t.Fatal("representative trial did not retain server monitoring samples")
+	}
+}
+
+func TestRunPairsPoliciesButSeparatesBurstTraffic(t *testing.T) {
+	random30, err := Run(engine.DefaultConfig(balancer.Random, 30), 1, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundRobin30, err := Run(engine.DefaultConfig(balancer.RoundRobin, 30), 1, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundRobin60, err := Run(engine.DefaultConfig(balancer.RoundRobin, 60), 1, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !slices.Equal(random30.Representative.Interarrivals, roundRobin30.Representative.Interarrivals) {
+		t.Fatal("policies within the same burst did not receive paired traffic")
+	}
+	if slices.Equal(roundRobin30.Representative.Interarrivals, roundRobin60.Representative.Interarrivals[:30]) {
+		t.Fatal("different burst-size experiments reused the same traffic prefix")
 	}
 }
 
