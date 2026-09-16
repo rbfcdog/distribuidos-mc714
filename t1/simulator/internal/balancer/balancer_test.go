@@ -81,6 +81,23 @@ func TestPowerOfTwoChoosesLessLoadedOfTwoPrimaries(t *testing.T) {
 	}
 }
 
+func TestHierarchicalLeastWorkChoosesPoolThenLocalServer(t *testing.T) {
+	router, err := NewRouter(HierarchicalLeastWork, rand.New(rand.NewPCG(1, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	states := []ServerState{
+		{Active: 10, Capacity: 10, ServiceTime: 0.1, Pool: 0},
+		{Active: 10, Capacity: 10, ServiceTime: 0.1, Pool: 0},
+		{Active: 5, Capacity: 10, ServiceTime: 0.05, Pool: 1},
+		{Capacity: 10, ServiceTime: 0.05, Pool: 1},
+		{Capacity: 100, ServiceTime: 0.01, Pool: 2, Backup: true},
+	}
+	if got := router.Route(states); got != 3 {
+		t.Fatalf("route = %d, want least-work server 3 from least-loaded pool 1", got)
+	}
+}
+
 func TestPowerOfTwoRequiresRandomSource(t *testing.T) {
 	if _, err := NewRouter(PowerOfTwo, nil); err == nil {
 		t.Fatal("NewRouter accepted power-of-two policy without random source")

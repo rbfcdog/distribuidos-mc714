@@ -36,8 +36,8 @@ func main() {
 	trialsCSV := flag.String("trials-csv", "", "optional path for per-trial metric CSV output")
 	traceCSV := flag.String("trace-csv", "", "optional path for representative server-state CSV output")
 	trafficCSV := flag.String("traffic-csv", "", "optional path for representative inter-arrival CSV output")
-	extrasCSV := flag.String("extras-csv", "", "optional path for optional heterogeneous/backup scenario CSV output")
-	runExtras := flag.Bool("extras", true, "run optional heterogeneous-server and overflow-backup scenarios")
+	extrasCSV := flag.String("extras-csv", "", "optional path for heterogeneous, backup, and multi-pool scenario CSV output")
+	runExtras := flag.Bool("extras", true, "run optional heterogeneous-server, overflow-backup, and multi-pool scenarios")
 	flag.Parse()
 
 	policies := []balancer.Policy{balancer.Random, balancer.RoundRobin, balancer.ShortestQueue}
@@ -106,6 +106,8 @@ func runOptionalScenarios(seed uint64) []extraResult {
 		{"heterogeneous_power_of_two", engine.HeterogeneousConfig(balancer.PowerOfTwo, 120)},
 		{"bounded_buffers", engine.BoundedBufferConfig(balancer.ShortestQueue, 120, false)},
 		{"bounded_buffers_with_backup", engine.BoundedBufferConfig(balancer.ShortestQueue, 120, true)},
+		{"multi_pool_flat_least_work", engine.MultiPoolConfig(balancer.LeastWork, 120)},
+		{"multi_pool_hierarchical", engine.MultiPoolConfig(balancer.HierarchicalLeastWork, 120)},
 	}
 
 	fmt.Println("\noptional scenarios")

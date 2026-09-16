@@ -32,7 +32,7 @@ MC714, Sistemas Distribuídos, Universidade Estadual de Campinas}}
 \maketitle
 
 \begin{abstract}
-Este trabalho implementa e avalia um balanceador de carga para três servidores. O simulador orientado a eventos discretos recebe rajadas Bounded Pareto e compara as políticas Aleatória, Round Robin e Fila Mais Curta. Cada servidor homogêneo executa até quinze requisições simultâneas, com serviço determinístico de $0{,}05$. Cada cenário usa horizonte fixo de 200 unidades e dez repetições. A análise emprega um modelo transiente de lote finito com roteamento justo, evitando hipóteses de regime estacionário incompatíveis com a rajada. Como extensões, são avaliados servidores heterogêneos, Round Robin Ponderado, Trabalho Mínimo, Poder de Duas Escolhas e um servidor de backup para estouro de buffers.
+Este trabalho implementa e avalia um balanceador de carga para três servidores. O simulador orientado a eventos discretos recebe rajadas Bounded Pareto e compara as políticas Aleatória, Round Robin e Fila Mais Curta. Cada servidor homogêneo executa até quinze requisições simultâneas, com serviço determinístico de $0{,}05$. Cada cenário usa horizonte fixo de 200 unidades e dez repetições. A análise emprega um modelo transiente de lote finito com roteamento justo, evitando hipóteses de regime estacionário incompatíveis com a rajada. Como extensões, são avaliados servidores heterogêneos, Round Robin Ponderado, Trabalho Mínimo, Poder de Duas Escolhas, backup para estouro de buffers e uma arquitetura hierárquica de dois níveis.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -124,7 +124,7 @@ A Fig.~\ref{fig:model} evidencia a comparação correta de horizonte. A vazão a
 \end{figure}
 
 \clearpage
-\section{Extensões e políticas adicionais}
+\section{Extensões, políticas e arquiteturas adicionais}
 \subsection{Servidores heterogêneos}
 O primeiro extra substitui os três servidores idênticos por $(c_s,S_s)=(10,0{,}06)$, $(15,0{,}05)$ e $(20,0{,}04)$. Assim, a taxa nominal $c_s/S_s$ varia entre $166{,}7$ e $500$ requisições por unidade. Round Robin continua atribuindo um terço da carga a cada destino e, portanto, ignora essa diferença.
 
@@ -163,9 +163,26 @@ No segundo extra, cada primário tem buffer para duas requisições. Sem backup,
 \label{fig:extras}
 \end{figure}
 
+\subsection{Arquitetura hierárquica em dois níveis}
+O terceiro extra organiza quatro servidores heterogêneos em dois pools. Um balanceador global escolhe o pool $z$ que minimiza
+\begin{equation}
+ G_z=\frac{1+\sum_{s\in z}(a_s+q_s)}
+ {\sum_{s\in z}c_s/S_s},
+\end{equation}
+isto é, demanda agregada após a nova requisição dividida pela taxa nominal do pool. Em seguida, um balanceador local aplica Trabalho Mínimo somente aos dois servidores daquele pool. A separação permite que decisões locais permaneçam confinadas ao pool, enquanto o nível global troca apenas estado agregado entre grupos.
+
+Como controle, a mesma topologia também executa Trabalho Mínimo plano, consultando diretamente os quatro servidores. As duas arquiteturas concluem as 120 requisições, com $\Theta=0{,}60$ e resposta média $0{,}04684$. Neste tráfego, a hierarquia preserva o resultado do balanceador centralizado; o experimento não mede latência de rede, falhas independentes dos pools nem custo real de propagação da telemetria, portanto não implica equivalência para implantações maiores.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=\columnwidth]{figures/architecture_comparison.png}
+\caption{Roteamento plano e hierárquico na mesma topologia de dois pools.}
+\label{fig:architecture}
+\end{figure}
+
 \clearpage
 \section{Validação e limitações}
-A validação possui quatro níveis. Primeiro, testes determinísticos exercitam precedência de partidas, capacidade simultânea, formação de fila, término no horizonte, integral de ocupação, rejeição e ativação do backup. Segundo, testes de política verificam ciclos independentes, desempates, exclusão do backup, proporção ponderada $1{:}2{:}3$ e escolha do menos carregado entre dois destinos. Terceiro, sementes separadas garantem tráfego idêntico entre políticas. Por fim, os CSVs são regenerados diretamente pelo executável e os gráficos apenas transformam esses dados.
+A validação possui quatro níveis. Primeiro, testes determinísticos exercitam precedência de partidas, capacidade simultânea, formação de fila, término no horizonte, integral de ocupação, rejeição e ativação do backup. Segundo, testes de política verificam ciclos independentes, desempates, exclusão do backup, proporção ponderada $1{:}2{:}3$, escolha do menos carregado entre dois destinos e seleção global/local da hierarquia. Terceiro, sementes separadas garantem tráfego idêntico entre políticas. Por fim, os CSVs são regenerados diretamente pelo executável e os gráficos apenas transformam esses dados.
 
 O modelo analítico e a simulação não são artificialmente forçados a coincidir no tempo de resposta. O modelo concentra o lote em $t=0$ e calcula exatamente sua ocupação binomial; a simulação preserva intervalos Bounded Pareto positivos. Portanto, $R_0$ é uma referência transiente de concentração, não uma previsão estacionária nem um ajuste aos dados. A igualdade de vazão decorre somente de todas as requisições terminarem antes de $T$.
 
@@ -175,10 +192,14 @@ O mapeamento $\alpha=3-2\mathcal{H}$ segue a parametrização solicitada, mas am
 Os dez ensaios satisfazem o número pedido, mas ainda produzem incerteza visível no roteamento aleatório. Reportam-se média e desvio-padrão, sem interpretar diferenças menores que essa dispersão como vantagem conclusiva. Nos cenários de backup, utilização considera toda a capacidade provisionada, inclusive o servidor de reserva, escolha conservadora para planejamento de recursos.
 
 \section{Conclusão}
-O simulador implementa as três políticas obrigatórias, capacidade concorrente, filas finitas, monitoramento e dez repetições. O horizonte fixo corrige a interpretação de vazão e utilização: as rajadas são curtas e o sistema fica ocioso na maior parte das 200 unidades. O modelo binomial transiente preserva população finita, roteamento $1/3$ e ondas de serviço. Nos extras, políticas cientes de capacidade reduzem o atraso em aproximadamente $24\%$ nos servidores heterogêneos, e o backup elimina perdas provocadas por buffers cheios.
+O simulador implementa as três políticas obrigatórias, capacidade concorrente, filas finitas, monitoramento e dez repetições. O horizonte fixo corrige a interpretação de vazão e utilização: as rajadas são curtas e o sistema fica ocioso na maior parte das 200 unidades. O modelo binomial transiente preserva população finita, roteamento $1/3$ e ondas de serviço. Nos extras, políticas cientes de capacidade reduzem o atraso em aproximadamente $24\%$ nos servidores heterogêneos, o backup elimina perdas provocadas por buffers cheios e o roteamento hierárquico reproduz o atraso da decisão plana no cenário de dois pools.
 
 \section*{Divisão de trabalho}
-\textbf{Rodrigo Camargo}: simulador, políticas, tráfego, métricas, extensões e testes. \textbf{André Loubet}: redação, organização e revisão do relatório, gráficos e comparação analítica.
+\textbf{Rodrigo Camargo}: projetou e implementou o simulador de eventos discretos, a fila de eventos, o gerador Bounded Pareto, as políticas obrigatórias e adicionais, os cenários heterogêneo, de backup e hierárquico, as métricas, exportações CSV e testes automatizados. Também cuidou das sementes reproduzíveis e da execução final dos experimentos.
+
+\textbf{André Loubet}: estruturou e revisou o relatório no formato IEEE, organizou tabelas e figuras, desenvolveu a visualização dos CSVs, confrontou resultados simulados e analíticos e revisou a apresentação das hipóteses, limitações e conclusões.
+
+\textbf{Atividades conjuntas}: conferência dos parâmetros do enunciado, revisão do modelo transiente de lote finito, interpretação dos resultados, inspeção dos gráficos e validação do PDF e dos artefatos finais.
 
 \begin{thebibliography}{9}
 \bibitem{enunciado}

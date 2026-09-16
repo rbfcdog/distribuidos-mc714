@@ -97,6 +97,7 @@ def main() -> None:
     plot_relative_performance(results, args.output / "relative_policy_performance.png")
     plot_model_error(results, args.output / "model_comparison_error.png")
     plot_extras(extras, args.output / "extras_comparison.png")
+    plot_architecture(extras, args.output / "architecture_comparison.png")
 
 
 def read_csv(path: Path, required_columns: set[str]) -> pd.DataFrame:
@@ -265,6 +266,31 @@ def plot_extras(extras: pd.DataFrame, output: Path) -> None:
     axes[1].legend(fontsize=8)
     for axis in axes:
         axis.grid(axis="y", alpha=0.25)
+    figure.savefig(output, dpi=220)
+    plt.close(figure)
+
+def plot_architecture(extras: pd.DataFrame, output: Path) -> None:
+    architecture = extras.loc[extras["scenario"].str.startswith("multi_pool_")].copy()
+    labels = {
+        "multi_pool_flat_least_work": "Flat least work",
+        "multi_pool_hierarchical": "Two-level hierarchy",
+    }
+    architecture["label"] = architecture["scenario"].map(labels)
+    architecture = architecture.dropna(subset=["label"])
+    if len(architecture) != len(labels):
+        raise ValueError("extras data must contain both multi-pool architecture scenarios")
+
+    figure, axis = plt.subplots(figsize=(4.35, 2.45), constrained_layout=True)
+    bars = axis.bar(
+        architecture["label"],
+        architecture["mean_response_time"],
+        color=["#2878b5", "#e07a5f"],
+    )
+    axis.bar_label(bars, fmt="%.5f", padding=3, fontsize=8)
+    axis.set_ylabel("Mean response time")
+    axis.set_title("Flat versus hierarchical multi-pool routing")
+    axis.set_ylim(0.04, architecture["mean_response_time"].max() * 1.12)
+    axis.grid(axis="y", alpha=0.25)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 

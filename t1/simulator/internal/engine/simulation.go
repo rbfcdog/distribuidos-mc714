@@ -20,11 +20,12 @@ const (
 )
 
 // ServerConfig defines one server's concurrency, service speed, waiting buffer,
-// and whether it is reserved for overflow traffic.
+// routing pool, and whether it is reserved for overflow traffic.
 type ServerConfig struct {
 	Capacity       int
 	ServiceTime    float64
 	BufferCapacity int
+	Pool           int
 	Backup         bool
 }
 
@@ -60,6 +61,23 @@ func HeterogeneousConfig(policy balancer.Policy, requestCount int) Config {
 			{Capacity: 10, ServiceTime: 0.06, BufferCapacity: requestCount},
 			{Capacity: 15, ServiceTime: 0.05, BufferCapacity: requestCount},
 			{Capacity: 20, ServiceTime: 0.04, BufferCapacity: requestCount},
+		},
+		InterArrival: defaultArrivalProcess(),
+	}
+}
+
+// MultiPoolConfig defines two heterogeneous pools for comparing a flat
+// balancer with a hierarchical global-plus-local architecture.
+func MultiPoolConfig(policy balancer.Policy, requestCount int) Config {
+	return Config{
+		Policy:       policy,
+		RequestCount: requestCount,
+		Horizon:      DefaultHorizon,
+		Servers: []ServerConfig{
+			{Capacity: 10, ServiceTime: 0.06, BufferCapacity: requestCount, Pool: 0},
+			{Capacity: 15, ServiceTime: 0.05, BufferCapacity: requestCount, Pool: 0},
+			{Capacity: 20, ServiceTime: 0.04, BufferCapacity: requestCount, Pool: 1},
+			{Capacity: 15, ServiceTime: 0.05, BufferCapacity: requestCount, Pool: 1},
 		},
 		InterArrival: defaultArrivalProcess(),
 	}
@@ -258,6 +276,9 @@ func (cfg Config) validate() error {
 		if server.BufferCapacity < 0 {
 			return fmt.Errorf("server %d buffer capacity cannot be negative", index)
 		}
+		if server.Pool < 0 {
+			return fmt.Errorf("server %d routing pool cannot be negative", index)
+		}
 		if !server.Backup {
 			primaryCount++
 		}
@@ -321,7 +342,7 @@ func updateRoutingStates(states []balancer.ServerState, servers []server) {
 		states[index] = balancer.ServerState{
 			Active: servers[index].active, Queued: len(servers[index].queue),
 			Capacity: servers[index].config.Capacity, ServiceTime: servers[index].config.ServiceTime,
-			Backup: servers[index].config.Backup,
+			Pool: servers[index].config.Pool, Backup: servers[index].config.Backup,
 		}
 	}
 }
