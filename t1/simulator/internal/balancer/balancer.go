@@ -11,12 +11,13 @@ import (
 type Policy string
 
 const (
-	Random             Policy = "random"
-	RoundRobin         Policy = "round_robin"
-	WeightedRoundRobin Policy = "weighted_round_robin"
-	ShortestQueue      Policy = "shortest_queue"
-	LeastWork          Policy = "least_work"
-	PowerOfTwo         Policy = "power_of_two"
+	Random                Policy = "random"
+	RoundRobin            Policy = "round_robin"
+	WeightedRoundRobin    Policy = "weighted_round_robin"
+	ShortestQueue         Policy = "shortest_queue"
+	LeastWork             Policy = "least_work"
+	PowerOfTwo            Policy = "power_of_two"
+	HierarchicalLeastWork Policy = "hierarchical_least_work"
 )
 
 // ServerState is the routing-visible state of one server. Backup servers are
@@ -27,6 +28,7 @@ type ServerState struct {
 	Queued      int
 	Capacity    int
 	ServiceTime float64
+	Pool        int
 	Backup      bool
 }
 
@@ -38,6 +40,8 @@ type Router struct {
 	next          int
 	currentWeight []float64
 	candidates    []int
+	poolIDs       []int
+	pools         [][]int
 	topologySize  int
 }
 
@@ -79,15 +83,9 @@ func (r *Router) Route(states []ServerState) int {
 		}
 		return selected
 	case LeastWork:
-		selected := candidates[0]
-		best := states[selected].normalizedWork()
-		for _, index := range candidates[1:] {
-			work := states[index].normalizedWork()
-			if work < best {
-				selected, best = index, work
-			}
-		}
-		return selected
+		return leastWork(states, candidates)
+	case HierarchicalLeastWork:
+		return r.routeHierarchical(states)
 	case PowerOfTwo:
 		if len(candidates) == 1 {
 			return candidates[0]
@@ -110,7 +108,7 @@ func (r *Router) Route(states []ServerState) int {
 // Valid reports whether policy is implemented.
 func (p Policy) Valid() bool {
 	switch p {
-	case Random, RoundRobin, WeightedRoundRobin, ShortestQueue, LeastWork, PowerOfTwo:
+	case Random, RoundRobin, WeightedRoundRobin, ShortestQueue, LeastWork, PowerOfTwo, HierarchicalLeastWork:
 		return true
 	default:
 		return false
@@ -135,6 +133,46 @@ func (r *Router) routeWeighted(states []ServerState, candidates []int) int {
 	return selected
 }
 
+// routeHierarchical models a two-level balancer. The global level chooses the
+// pool with the smallest demand per aggregate service rate; the local level
+// then chooses the least-work server inside that pool.
+func (r *Router) routeHierarchical(states []ServerState) int {
+	selectedPool := 0
+	best := poolWork(states, r.pools[0])
+	for index := 1; index < len(r.pools); index++ {
+		work := poolWork(states, r.pools[index])
+		if work < best {
+			selectedPool, best = index, work
+		}
+	}
+	return leastWork(states, r.pools[selectedPool])
+}
+
+func poolWork(states []ServerState, indexes []int) float64 {
+	load := 1
+	serviceRate := 0.0
+	for _, index := range indexes {
+		load += states[index].load()
+		serviceRate += states[index].serviceRate()
+	}
+	if serviceRate <= 0 {
+		return math.Inf(1)
+	}
+	return float64(load) / serviceRate
+}
+
+func leastWork(states []ServerState, candidates []int) int {
+	selected := candidates[0]
+	best := states[selected].normalizedWork()
+	for _, index := range candidates[1:] {
+		work := states[index].normalizedWork()
+		if work < best {
+			selected, best = index, work
+		}
+	}
+	return selected
+}
+
 // primaryIndexes caches the immutable topology used throughout one trial.
 func (r *Router) primaryIndexes(states []ServerState) []int {
 	if r.topologySize == len(states) && r.candidates != nil {
@@ -142,9 +180,25 @@ func (r *Router) primaryIndexes(states []ServerState) []int {
 	}
 	r.topologySize = len(states)
 	r.candidates = make([]int, 0, len(states))
+	r.poolIDs = r.poolIDs[:0]
+	r.pools = r.pools[:0]
 	for index := range states {
-		if !states[index].Backup {
-			r.candidates = append(r.candidates, index)
+		if states[index].Backup {
+			continue
+		}
+		r.candidates = append(r.candidates, index)
+		poolPosition := -1
+		for position, poolID := range r.poolIDs {
+			if poolID == states[index].Pool {
+				poolPosition = position
+				break
+			}
+		}
+		if poolPosition < 0 {
+			r.poolIDs = append(r.poolIDs, states[index].Pool)
+			r.pools = append(r.pools, []int{index})
+		} else {
+			r.pools[poolPosition] = append(r.pools[poolPosition], index)
 		}
 	}
 	return r.candidates

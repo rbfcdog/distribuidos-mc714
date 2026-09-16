@@ -160,6 +160,8 @@ func policyStream(policy balancer.Policy) uint64 {
 		return 0x91e10da5c79e7b1d
 	case balancer.PowerOfTwo:
 		return 0x94d049bb133111eb
+	case balancer.HierarchicalLeastWork:
+		return 0x8538ecf4f10d2f71
 	default:
 		return 0
 	}
