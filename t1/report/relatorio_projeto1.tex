@@ -136,20 +136,26 @@ Para $\lambda=3{,}3$, cada réplica recebe em média $1{,}1$ trabalho por unidad
 \section{Observabilidade e extensões}
 O executável oferece \texttt{-trace} para imprimir instante, servidor, ocupação, fila e conclusões depois de cada evento. Os mesmos dados são exportados em CSV. Esse registro torna visível a diferença entre a decisão centralizada do front-end e o estado privado de cada réplica. Em uma implantação remota, a telemetria chegaria por mensagens e poderia estar desatualizada. O simulador usa leitura imediata para isolar o efeito da política de encaminhamento.
 
-As extensões mantidas no código avaliam servidores heterogêneos, backup para buffer cheio e hierarquia de dois pools. Com rajada 120, Trabalho Mínimo reduziu a resposta de $0{,}06456$ para $0{,}05101$ em relação a Round Robin heterogêneo. Com buffers limitados, o backup removeu 12 rejeições médias e preservou vazão $0{,}60$. O roteamento hierárquico obteve resposta $0{,}04794$, próxima de $0{,}04792$ na consulta plana aos quatro servidores. Esses cenários separam capacidade, sobrecarga e escopo de estado, conceitos que aparecem em serviços distribuídos reais.
+As extensões avaliam topologias e políticas fora da matriz obrigatória. A primeira família mantém três trabalhadores homogêneos com uma posição simultânea por trabalhador para tornar a espera observável. Filas privadas com decisão Aleatória produziram resposta $0{,}97547$. Fila Mais Curta a reduziu para $0{,}95168$, ganho de $2{,}44\%$. A fila única compartilhada, na qual qualquer trabalhador ocioso retira a próxima requisição, obteve o mesmo valor. Com trabalhadores homogêneos e telemetria imediata, as duas formas de evitar desequilíbrio são equivalentes. A fila compartilhada simplifica a distribuição de trabalho, mas centraliza coordenação e disponibilidade.
+
+A segunda família compara quatro trabalhadores heterogêneos em consulta plana e dois pools. A hierarquia acrescenta uma decisão de pool e outra de trabalhador. Sua resposta $0{,}04794$ fica a $0{,}04\%$ da consulta plana $0{,}04792$, quantificando o custo local de hierarquia sem alterar capacidade. Trabalho Mínimo reduz a resposta heterogênea de $0{,}06456$ para $0{,}05101$. Backup elimina 12 rejeições médias com resposta $0{,}05280$.
 
 \begin{table}[!t]
-\caption{Extensões opcionais na rajada 120.}
+\caption{Arquiteturas e extensões na rajada 120. Os três primeiros casos usam três trabalhadores de capacidade um.}
 \centering
 \scriptsize
 \begin{tabular}{lrrr}
 \toprule
 Cenário & resposta & rejeições & backup \\
 \midrule
+Filas privadas, aleatória & 0,97547 & 0,0 & 0,0 \\
+Filas privadas, fila curta & 0,95168 & 0,0 & 0,0 \\
+Fila única compartilhada & 0,95168 & 0,0 & 0,0 \\
 RR heterogêneo & 0,06456 & 0,0 & 0,0 \\
 Trabalho Mínimo & 0,05101 & 0,0 & 0,0 \\
-Buffer sem backup & 0,05135 & 12,0 & 0,0 \\
 Buffer com backup & 0,05280 & 0,0 & 12,0 \\
+Pool plano, quatro workers & 0,04792 & 0,0 & 0,0 \\
+Pool hierárquico, quatro workers & 0,04794 & 0,0 & 0,0 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -176,7 +182,7 @@ Política configurável e logs da dinâmica & Flags do executável, Seção V e 
 Instruções, documentação do código e testes & \texttt{README}, pacotes Go e testes \\
 Divisão, IEEE em quatro páginas e fonte & Seção VII, divisão e \texttt{report/} \\
 Entrega única no Classroom & PDF e ZIP finais no diretório raiz \\
-Ponto extra heterogêneo e backup & Seção V, Tabela IV e \texttt{extras.csv} \\
+Extras: heterogêneo, backup e topologias & Seção V, Tabela IV e \texttt{extras.csv} \\
 \bottomrule
 \end{tabular}
 \end{table}

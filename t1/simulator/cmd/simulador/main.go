@@ -118,6 +118,9 @@ func runOptionalScenarios(seed uint64) []extraResult {
 		{"bounded_buffers_with_backup", engine.BoundedBufferConfig(balancer.ShortestQueue, 120, true)},
 		{"multi_pool_flat_least_work", engine.MultiPoolConfig(balancer.LeastWork, 120)},
 		{"multi_pool_hierarchical", engine.MultiPoolConfig(balancer.HierarchicalLeastWork, 120)},
+		{"architecture_private_random", engine.PrivateQueueStressConfig(balancer.Random, 120)},
+		{"architecture_private_shortest_queue", engine.PrivateQueueStressConfig(balancer.ShortestQueue, 120)},
+		{"architecture_shared_queue", engine.SharedQueueConfig(120)},
 	}
 
 	fmt.Println("\noptional scenarios")
