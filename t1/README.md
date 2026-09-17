@@ -52,7 +52,8 @@ go run ./cmd/simulador \
   -results-csv ../analysis/data/results.csv \
   -trials-csv ../analysis/data/trials.csv \
   -trace-csv ../analysis/data/server_trace.csv \
-  -heterogeneous-csv ../analysis/data/heterogeneous.csv
+  -heterogeneous-csv ../analysis/data/heterogeneous.csv \
+  -bounded-pareto-architectures-csv ../analysis/data/bounded_pareto_architectures.csv
 
 ```
 A partir de `analysis/`:
@@ -62,7 +63,7 @@ uv sync
 uv run simulation-plots
 ```
 
-Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Os gráficos gerados são `response_comparison.png`, `jobs_comparison.png` e `unstable_queues.png`.
+Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. `bounded_pareto_architectures.csv` é uma extensão separada, com chegadas Bounded Pareto e cinco arquiteturas: filas privadas, fila compartilhada, buffers limitados, backup de overflow e pools hierárquicos. Seus números não são misturados aos resultados Poisson. Os gráficos gerados são `response_comparison.png`, `jobs_comparison.png`, `unstable_queues.png` e `bounded_pareto_architectures.png`.
 
 ## Recompilar o relatório
 
@@ -79,6 +80,8 @@ O relatório final é `relatorio_projeto1_rodrigo_camargo.pdf`. O arquivo compac
 
 - `simulator/internal/balancer`: as políticas obrigatórias e o Round Robin ponderado do ponto extra.
 - `simulator/internal/stationary`: fila de eventos, servidores FCFS, métricas, modelo M/M/1, configuração heterogênea e testes.
+- `simulator/internal/engine` e `simulator/internal/experiment`: extensão Bounded Pareto, métricas por réplica e arquiteturas adicionais.
+- `simulator/internal/analytics`, `simulator/internal/domain` e `simulator/pkg/mathutil`: suporte isolado à extensão não-Poisson.
 - `simulator/cmd/simulador`: configuração por linha de comando e exportação CSV.
 - `analysis`: gráficos da comparação e da instabilidade.
 - `report`: fonte IEEE e figuras do relatório.

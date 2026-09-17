@@ -113,7 +113,7 @@ $\lambda$ & Aleatória & RR & ganho RR & Fila curta & ganho F \\
 A Tabela~\ref{tab:responses} confirma $E[R]_{\mathrm{Fila\ Curta}}\leq E[R]_{\mathrm{RR}}\leq E[R]_{\mathrm{Aleat.}}$ em todas as cargas. Round Robin elimina a variabilidade de sorteio de destinos. Fila Mais Curta usa a ocupação atual e evita encaminhar para uma réplica maior quando há alternativa. Em $\lambda=2{,}7$, os ganhos são 31,6\% para Round Robin e 59,8\% para Fila Mais Curta. Em carga baixa, as três curvas tendem ao tempo de serviço médio de uma unidade, o cheque de sanidade esperado.
 
 
-O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\ref{fig:jobs}. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A Tabela~\ref{tab:highload} mostra que a utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações.
+O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\ref{fig:jobs}. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações. A Figura~\ref{fig:pareto_arch} apresenta, separadamente, as arquiteturas com tráfego Bounded Pareto.
 
 \begin{figure}[H]
 \centering
@@ -122,21 +122,12 @@ O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\
 \label{fig:jobs}
 \end{figure}
 
-\begin{table}[H]
-\caption{Estado médio em $\lambda=2{,}7$. $A_i$ é o número médio de atribuições por réplica.}
-\label{tab:highload}
+\begin{figure}[H]
 \centering
-\scriptsize
-\begin{tabular}{lrrrrrr}
-\toprule
-Política & $U_1$ & $U_2$ & $U_3$ & $A_1$ & $A_2$ & $A_3$ \\
-\midrule
-Aleatória & 0,897 & 0,908 & 0,893 & 4494 & 4516 & 4478 \\
-RR & 0,901 & 0,897 & 0,900 & 4497 & 4496 & 4496 \\
-Fila curta & 0,899 & 0,899 & 0,899 & 4472 & 4529 & 4487 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=\columnwidth]{figures/bounded_pareto_architectures.png}
+\caption{Extensão Bounded Pareto: vazão e eventos de admissão em cinco arquiteturas.}
+\label{fig:pareto_arch}
+\end{figure}
 
 A Lei de Little foi verificada no sistema inteiro como $E[N]=X E[R]$. Na carga mais exigente, os pares $E[N]$ e $XE[R]$ foram 26,262 e 26,136 para Aleatória, 17,959 e 17,900 para RR, e 10,539 e 10,523 para Fila Mais Curta. O maior erro absoluto entre as 15 combinações foi 0,127, na primeira dessas medições. A integração temporal é essencial, pois a média de filas vista somente nas chegadas amostra outra distribuição.
 
@@ -160,11 +151,10 @@ O experimento requerido usa telemetria imediata e filas privadas, deliberadament
 
 Uma fila única compartilhada é outra organização possível. Nela, a requisição é admitida uma vez e os trabalhadores fazem \textit{pull} quando ficam ociosos. Isso evita escolha baseada em visão parcial e, com servidores homogêneos e estado imediato, reproduz o objetivo de balancear a menor fila. Em contrapartida, centraliza coordenação e disponibilidade. Uma fila privada preserva isolamento dos servidores e simplifica o estado local, mas transfere ao dispatcher a responsabilidade de decidir o destino.
 
-Uma hierarquia de pools reduz a abrangência de cada consulta de estado. O primeiro nível selecionaria uma região ou pool e o segundo aplicaria uma política local. Essa alternativa favorece autonomia de falhas e escalabilidade geográfica, mas acrescenta uma decisão e telemetria entre níveis. Também não foi medida nesta matriz, porque o enunciado fixa três réplicas homogêneas. A extensão heterogênea medida abaixo usa pesos proporcionais a $\mu_i$, pois a divisão uniforme deixa de ser naturalmente adequada.
+Uma hierarquia de pools reduz a abrangência de cada consulta de estado, ao custo de uma decisão e telemetria adicionais. Ela fica fora dos resultados obrigatórios, mas é medida abaixo, separadamente, com chegadas Bounded Pareto.
 
 A admissão não é execução. Em uma fila distribuída, confirmação perdida pode causar nova tentativa e processamento duplicado. Um destino de contingência melhora disponibilidade apenas se a requisição possui identificador idempotente e o servidor deduplica reentregas. Partições, reinicialização de consumidores, eleição de líder e confirmação persistente ficam fora do simulador. O rastreamento por evento identifica a dinâmica da carga, mas não substitui esses protocolos de confiabilidade.
 
-A versão anterior do estudo avaliava rajadas, capacidades finitas e topologias adicionais. Esses números não são combinados às tabelas atuais porque violariam as hipóteses de Poisson, serviço exponencial, filas ilimitadas e três servidores homogêneos. O conteúdo arquitetural acima é preservado como análise de projeto. Os resultados quantitativos vêm da configuração requerida, exceto pelo ponto extra heterogêneo explicitamente identificado a seguir.
 
 \section{Validade, cobertura e extensões}
 As variáveis aleatórias são geradas por fontes reproduzíveis e as dez réplicas são independentes entre si. Ainda assim, a estimativa possui incerteza finita, reportada pelos intervalos de 95\%. A escolha de $T=5000$ e do descarte inicial de 500 reduz o efeito do estado vazio da inicialização nas cargas estáveis. Ela não transforma o caso $\lambda=3{,}3$ em estacionário: para essa carga, o aquecimento é removido e a trajetória inteira é registrada, pois o crescimento é o fenômeno medido.
@@ -193,6 +183,8 @@ A validade externa é deliberadamente limitada. O modelo não inclui latência d
 
 Como ponto extra, testamos servidores heterogêneos com $\boldsymbol{\mu}=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Round Robin uniforme envia $0{,}8$ para cada réplica, logo sobrecarrega a terceira ($\rho_3=1{,}6$), apesar da capacidade total ser 3. A política \texttt{weighted\_round\_robin} usa $p_i=\mu_i/\sum_j\mu_j=(1/2,1/3,1/6)$ e obtém taxas $(1{,}2,0{,}8,0{,}4)$, todas com $\rho_i=0{,}8$. Em dez réplicas, RR uniforme terminou com $1477{,}1\pm66{,}9$ requisições, $X=2{,}061\pm0{,}010$ e $E[R]=246{,}110\pm8{,}402$; a ponderada terminou com $6{,}5\pm3{,}5$, $X=2{,}388\pm0{,}016$ e $E[R]=3{,}272\pm0{,}177$. As utilizações ponderadas foram $0{,}790/0{,}793/0{,}795$. Os dados estão em \texttt{heterogeneous.csv}; esta extensão não altera as conclusões do cenário obrigatório homogêneo.
 
+Como extensão não-Poisson, medimos com Bounded Pareto, 120 requisições e dez réplicas: filas privadas, fila compartilhada, buffers limitados, backup de \textit{overflow} e pools hierárquicos. A Figura~\ref{fig:pareto_arch} mostra os resultados. Buffers limitaram $X$ a $0{,}521\pm0{,}040$ e rejeitaram 15,8 requisições; backup recuperou $X=0{,}600$ sem rejeições, com 15,8 ativações. Filas privadas, compartilhada e pools completaram $X=0{,}600$. Como as capacidades diferem, não há ranking de latência.
+
 O registro por evento facilita a auditoria do caminho de cada requisição. Uma linha de rastreamento contém o instante após a transição, a população total, os três tamanhos de fila e as conclusões acumuladas. Com isso é possível verificar que Round Robin segue o ciclo, que Aleatória não mantém igualdade exata em toda amostra finita e que Fila Mais Curta resolve empates sem viés de identificador. A mesma observabilidade seria necessária numa implantação real, mas com timestamps sincronizados e uma política explícita para estado atrasado.
 
 \begin{table}[!t]
@@ -208,7 +200,7 @@ Três filas FCFS e $\mu=1$ & Configuração padrão em \texttt{stationary} e tes
 Três políticas configuráveis & Flag \texttt{-policy} e pacote \texttt{balancer}. \\
 15 médias e ICs de 95\% & \texttt{results.csv}, \texttt{trials.csv}, Tabela~\ref{tab:responses} e Figuras~\ref{fig:response} e~\ref{fig:jobs}. \\
 Dinâmica de carga & \texttt{server\_trace.csv}, flag \texttt{-trace} e Figura~\ref{fig:unstable}. \\
-Execução reproduzível & \texttt{README}, fonte Go, análise Python, CSVs obrigatório e heterogêneo, figuras e PDF no arquivo comprimido. \\
+Execução reproduzível & \texttt{README}, fontes, CSVs, figuras e PDF no arquivo comprimido. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -216,7 +208,7 @@ Execução reproduzível & \texttt{README}, fonte Go, análise Python, CSVs obri
 \subsection{Auditoria operacional}
 O simulador trata a carga como um fluxo, não como um conjunto de clientes pré-criado. Após cada chegada, a próxima é agendada a partir de uma nova amostra exponencial. Após o encaminhamento, somente a fila escolhida pode iniciar serviço. Após uma partida, somente a própria réplica retira o próximo item FCFS. Essas três transições preservam as fronteiras entre dispatcher, fila local e thread de execução. Elas também evitam introduzir sem querer uma fila central, múltiplas threads ou serviço compartilhado, hipóteses que modificariam a comparação.
 
-O contador de atribuições e as utilizações não são métricas redundantes. Round Robin distribui atribuições quase exatamente em partes iguais, como mostra a Tabela~\ref{tab:highload}. Aleatória só produz igualdade em esperança e exibe pequenas diferenças finitas. Fila Mais Curta pode atribuir quantidades diferentes para compensar serviços já concluídos ou filas momentaneamente maiores. A métrica decisiva é o atraso observado, não a igualdade nominal de atribuições. Essa distinção impede concluir incorretamente que uma divisão perfeitamente uniforme sempre minimiza espera.
+O contador de atribuições e as utilizações não são métricas redundantes. Round Robin distribui atribuições quase exatamente em partes iguais. Aleatória só produz igualdade em esperança e exibe pequenas diferenças finitas. Fila Mais Curta pode atribuir quantidades diferentes para compensar serviços já concluídos ou filas momentaneamente maiores. A métrica decisiva é o atraso observado, não a igualdade nominal de atribuições. Essa distinção impede concluir incorretamente que uma divisão perfeitamente uniforme sempre minimiza espera.
 
 \begin{table}[!t]
 \caption{Invariantes usados para auditar a dinâmica de eventos.}
