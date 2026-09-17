@@ -6,7 +6,7 @@
 \usepackage{booktabs}
 \usepackage{amsmath}
 
-\title{Balanceador de Carga com Filas M/M/1\
+\title{Balanceador de Carga com Filas M/M/1\\
 para um Sistema Distribuído}
 
 \author{\IEEEauthorblockN{Rodrigo Camargo \quad André Loubet}
@@ -17,34 +17,52 @@ MC714, Sistemas Distribuídos, Universidade Estadual de Campinas}}
 \maketitle
 
 \begin{abstract}
-Implementamos em Go um simulador de eventos discretos para um balanceador instantâneo que encaminha um processo de Poisson para três réplicas homogêneas com filas FCFS ilimitadas. Comparamos Escolha Aleatória, Round Robin e Fila Mais Curta em cinco cargas estáveis, usando dez réplicas de 5000 unidades e aquecimento de 500. Para a política aleatória, a decomposição Poisson produz três filas M/M/1 independentes e fornece a referência analítica. A simulação confirma vazão, utilização, Lei de Little e a ordenação de resposta entre as políticas. Em $\lambda=3{,}3$, as filas crescem sem equilíbrio como previsto pelo modelo fluido.
+Implementamos em Go um simulador de eventos discretos para um balanceador instantâneo que encaminha um processo de Poisson para três réplicas homogêneas com filas FCFS ilimitadas. Comparamos Escolha Aleatória, Round Robin e Fila Mais Curta em cinco cargas estáveis, usando dez réplicas de 5000 unidades e aquecimento de 500. Para a política aleatória, a decomposição de Poisson produz três filas M/M/1 independentes e fornece a referência analítica exata. A simulação confirma vazão, utilização, Lei de Little e a ordenação de resposta entre as políticas. Em $\lambda=3{,}3$, as filas crescem sem equilíbrio como previsto pelo modelo fluido. A discussão também delimita as consequências distribuídas de telemetria atrasada, fila compartilhada, hierarquia e recuperação de falhas, sem atribuir a essas alternativas resultados que não pertencem ao modelo requerido.
 \end{abstract}
 
-\section{Arquitetura e método}
-O front-end recebe cada requisição e seleciona uma das três réplicas antes da admissão. O dispatcher não consome tempo. Cada réplica tem uma única thread, fila FCFS ilimitada e tempo de serviço exponencial de média $1/\mu=1$. Chegadas são exponenciais independentes com taxa total $\lambda$. O relógio virtual processa chegadas e partidas numa fila mínima de eventos. Partidas vencem chegadas no mesmo instante, garantindo que a ocupação observada na decisão seja consistente.
+\section{Arquitetura, políticas e implementação}
+O sistema possui um front-end que recebe cada requisição e seleciona uma de três réplicas antes da admissão. O dispatcher não consome tempo. Cada réplica possui uma única thread, fila FCFS ilimitada e tempo de serviço exponencial de média $1/\mu=1$. Chegadas têm intervalos exponenciais independentes de taxa total $\lambda$. Portanto, os únicos gargalos são as três threads e suas filas privadas.
 
-A configuração de linha de comando escolhe \texttt{random}, \texttt{round\_robin}, \texttt{shortest\_queue} ou todas. Aleatória sorteia cada destino com probabilidade $1/3$. Round Robin cicla $1,2,3$. Fila Mais Curta escolhe o menor número de requisições em execução mais espera e sorteia uniformemente os empates. O programa registra para cada evento instante, população total, ocupação por fila e conclusões. Assim, o rastreamento distingue a decisão centralizada da execução independente nas réplicas.
+A simulação usa uma fila mínima de eventos. Uma chegada cria a próxima chegada e encaminha a requisição conforme a política. Uma partida libera a thread e inicia a próxima requisição local, quando existir. Partidas vencem chegadas no mesmo instante. Esta ordem impede que uma chegada observe uma thread ainda marcada como ocupada no próprio instante em que ela termina. O integrador soma $N(t)\Delta t$ entre eventos, logo $E[N]$ é área temporal, não média de amostras de chegada.
 
-Foram avaliados $\lambda\in\{0{,}6,1{,}2,1{,}8,2{,}4,2{,}7\}$, cada política e dez sementes. Cada execução dura $T=5000$ e descarta os primeiros 500 instantes. Medimos vazão $X$, resposta média $E[R]$, população média $E[N]$ pela área sob $N(t)$ e utilização por servidor $U_i$. Os intervalos apresentados são $t_{0{,}975,9}s/\sqrt{10}$. Para manter a comparação controlada, a réplica de mesmo índice recebe a mesma sequência de chegadas nas três políticas e usa fontes independentes para serviço e roteamento.
+\begin{table}[!t]
+\caption{Decisão do dispatcher e informação utilizada.}
+\label{tab:policies}
+\centering
+\scriptsize
+\begin{tabular}{p{0.19\columnwidth}p{0.69\columnwidth}}
+\toprule
+Política & Regra de encaminhamento \\
+\midrule
+Aleatória & Sorteia cada réplica com probabilidade independente $1/3$. \\
+Round Robin & Encaminha ciclicamente para $1,2,3,1,\ldots$, sem consultar carga. \\
+Fila Mais Curta & Escolhe o menor total em execução mais espera e sorteia uniformemente os empates. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A configuração de linha de comando aceita \texttt{random}, \texttt{round\_robin}, \texttt{shortest\_queue} ou todas as políticas. O registro de rastreamento contém instante, população da rede, ocupação de cada fila e conclusões. Os CSVs de resultados, de réplicas e de eventos permitem reproduzir tabelas, barras de erro e a trajetória instável. Assim, o programa separa a decisão centralizada do front-end da execução independente nas réplicas.
+
+Foram avaliados $\lambda\in\{0{,}6,1{,}2,1{,}8,2{,}4,2{,}7\}$, cada política e dez sementes, totalizando 15 configurações. Cada execução dura $T=5000$ e descarta os primeiros 500 instantes. Medimos vazão $X$, resposta média $E[R]$, população média $E[N]$ e utilização por servidor $U_i$. Cada intervalo é $\bar y\pm t_{0{,}975,9}s/\sqrt{10}$, com $t_{0{,}975,9}=2{,}262$. A réplica de mesmo índice recebe o mesmo traço de chegadas nas três políticas, enquanto as fontes de serviço e roteamento permanecem independentes. Essa escolha reduz ruído de comparação sem acoplar o estado das filas.
 
 \section{Modelo analítico para Escolha Aleatória}
-Se $N(t)$ é Poisson de taxa $\lambda$, o \textit{splitting} independente por três destinos com probabilidade $1/3$ gera processos $N_i(t)$ Poisson independentes, todos com
+Se $N(t)$ é Poisson de taxa $\lambda$, o \textit{splitting} independente por três destinos de probabilidade $1/3$ gera processos $N_i(t)$ Poisson independentes, com
 \begin{equation}
 \lambda_i=\lambda/3.
 \end{equation}
-Logo, cada réplica sob Aleatória é exatamente uma M/M/1. Com $\rho=\lambda/(3\mu)$, sua distribuição estacionária é
+Sob Aleatória, cada réplica é exatamente uma M/M/1. Definindo $\rho=\lambda/(3\mu)$, a distribuição estacionária é
 \begin{equation}
 p_k=(1-\rho)\rho^k,\quad k\geq0,
 \end{equation}
-e existe somente se $\lambda<3\mu$. Das médias geométricas seguem
+e existe apenas se $\lambda<3\mu$. Das médias geométricas seguem
 \begin{align}
 U_i&=\rho,&E[N_i]&=\frac{\rho}{1-\rho},\\
 E[T_Q]&=\frac{\rho}{\mu-\lambda/3},&E[R]&=\frac{1}{\mu-\lambda/3}.
 \end{align}
-Em equilíbrio, toda chegada aceita é atendida por alguma réplica. Por conservação de trabalho, $X=\lambda$ e a utilização média é $\lambda/(3\mu)$ também para Round Robin e Fila Mais Curta. A política altera a distribuição de espera, não a capacidade de serviço. A Tabela~\ref{tab:theory} contém a referência analítica por réplica.
+Em equilíbrio, toda chegada é concluída por alguma réplica. Por conservação de trabalho, $X=\lambda$ e a utilização média é $\lambda/(3\mu)$ também para Round Robin e Fila Mais Curta. Não se usa, porém, a fórmula M/M/1 como expressão exata de resposta dessas duas políticas. Round Robin correlaciona destinos consecutivos e Fila Mais Curta acopla as filas por seu estado observado. Elas são comparadas por simulação.
 
 \begin{table}[!t]
-\caption{Modelo M/M/1 da réplica sob Aleatória, com $\mu=1$.}
+\caption{Modelo M/M/1 por réplica sob Aleatória, com $\mu=1$.}
 \label{tab:theory}
 \centering
 \scriptsize
@@ -61,8 +79,10 @@ $\lambda$ & $p_0$ & $U_i$ & $E[N_i]$ & $E[T_Q]$ & $E[R]$ & $X$ \\
 \end{tabular}
 \end{table}
 
-\section{Resultados estáveis}
-A Figura~\ref{fig:response} compara a curva analítica com os pontos simulados e ICs de 95\%. Aleatória acompanha o modelo, inclusive perto de $\rho=0{,}9$. Por exemplo, em $\lambda=2{,}7$, $E[R]_{sim}=9{,}712\pm0{,}677$ contra 10 analítico. A diferença é compatível com a variabilidade finita das dez réplicas. A vazão observada nas 15 configurações ficou entre $0{,}595$ e $2{,}695$, com IC máximo $0{,}018$. As utilizações por réplica ficaram entre $0{,}193$ e $0{,}908$, centradas nas previsões de 0,2 a 0,9. Isso confirma a conservação de trabalho exigida para as três políticas.
+O limite de capacidade da rede é $3\mu=3$. A aproximação deixa explícito que a política pode redistribuir espera, mas não criar capacidade. Esta separação entre capacidade e despacho guia tanto a validação experimental quanto a discussão de implantação distribuída.
+
+\section{Resultados estáveis e validação}
+A Figura~\ref{fig:response} compara a curva analítica com pontos simulados e ICs de 95\%. Aleatória acompanha o modelo inclusive em $\rho=0{,}9$: para $\lambda=2{,}7$, $E[R]_{sim}=9{,}712\pm0{,}677$ contra 10 analítico. A vazão observada nas 15 configurações ficou entre $0{,}595$ e $2{,}695$, com maior semi-intervalo de 0,018. As utilizações ficaram entre 0,193 e 0,908, centradas nas previsões entre 0,2 e 0,9. São evidências independentes da conservação de trabalho.
 
 \begin{figure}[!t]
 \centering
@@ -70,8 +90,6 @@ A Figura~\ref{fig:response} compara a curva analítica com os pontos simulados e
 \caption{Resposta simulada com IC de 95\% e curva M/M/1 para Aleatória.}
 \label{fig:response}
 \end{figure}
-
-A Tabela~\ref{tab:responses} mostra as médias e ICs de resposta, além do ganho sobre Aleatória. A ordenação $E[R]_{\mathrm{Fila\ Curta}}\leq E[R]_{\mathrm{RR}}\leq E[R]_{\mathrm{Aleat.}}$ vale em todas as cargas. Round Robin elimina a variação introduzida pelo sorteio de destinos. Fila Mais Curta também usa informação atual de congestionamento e evita encaminhar para uma réplica maior quando há alternativa. O ganho cresce com a carga. Em $\lambda=2{,}7$, Round Robin reduz a resposta em 31,6\% e Fila Mais Curta em 59,8\%.
 
 \begin{table}[!t]
 \caption{Resposta média $\pm$ IC 95\% e ganho sobre Aleatória.}
@@ -91,8 +109,9 @@ $\lambda$ & Aleatória & RR & ganho RR & Fila curta & ganho F \\
 \end{tabular}
 \end{table}
 
-A Lei de Little foi medida no sistema inteiro como $E[N]=X E[R]$. O maior erro absoluto entre as 15 combinações foi 0,127, para Aleatória em $\lambda=2{,}7$. Os outros ficaram abaixo de 0,060, exceto efeitos de filas longas no limite de carga. A integração temporal evita o viés de usar somente a média observada nas chegadas.
-\begin{table}[!b]
+A Tabela~\ref{tab:responses} confirma $E[R]_{\mathrm{Fila\ Curta}}\leq E[R]_{\mathrm{RR}}\leq E[R]_{\mathrm{Aleat.}}$ em todas as cargas. Round Robin elimina a variabilidade de sorteio de destinos. Fila Mais Curta usa a ocupação atual e evita encaminhar para uma réplica maior quando há alternativa. Em $\lambda=2{,}7$, os ganhos são 31,6\% para Round Robin e 59,8\% para Fila Mais Curta. Em carga baixa, as três curvas tendem ao tempo de serviço médio de uma unidade, o cheque de sanidade esperado.
+
+\begin{table}[!t]
 \caption{População média $E[N]$ com IC de 95\%.}
 \label{tab:jobs}
 \centering
@@ -110,13 +129,31 @@ $\lambda$ & Aleatória & RR & Fila curta \\
 \end{tabular}
 \end{table}
 
+O benefício de observar carga aparece também em $E[N]$. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A Tabela~\ref{tab:highload} mostra que a utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações.
+
+\begin{table}[!t]
+\caption{Estado médio em $\lambda=2{,}7$. $A_i$ é o número médio de atribuições por réplica.}
+\label{tab:highload}
+\centering
+\scriptsize
+\begin{tabular}{lrrrrrr}
+\toprule
+Política & $U_1$ & $U_2$ & $U_3$ & $A_1$ & $A_2$ & $A_3$ \\
+\midrule
+Aleatória & 0,897 & 0,908 & 0,893 & 4494 & 4516 & 4478 \\
+RR & 0,901 & 0,897 & 0,900 & 4497 & 4496 & 4496 \\
+Fila curta & 0,899 & 0,899 & 0,899 & 4472 & 4529 & 4487 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A Lei de Little foi verificada no sistema inteiro como $E[N]=X E[R]$. Na carga mais exigente, os pares $E[N]$ e $XE[R]$ foram 26,262 e 26,136 para Aleatória, 17,959 e 17,900 para RR, e 10,539 e 10,523 para Fila Mais Curta. O maior erro absoluto entre as 15 combinações foi 0,127, na primeira dessas medições. A integração temporal é essencial, pois a média de filas vista somente nas chegadas amostra outra distribuição.
 
 \section{Instabilidade em $\lambda=3{,}3$}
-Com $\lambda=3{,}3$, $\rho=1{,}1$ e a capacidade total é $3\mu=3$. Não existe distribuição estacionária nem valores finitos para $p_k$, $E[N_i]$, $E[T_Q]$ e $E[R]$. A aproximação fluida de rede é
+Com $\lambda=3{,}3$, $\rho=1{,}1$ e a capacidade total é 3. Não existe distribuição estacionária nem valores finitos para $p_k$, $E[N_i]$, $E[T_Q]$ e $E[R]$. A Lei de Little estacionária tampouco se aplica. A aproximação fluida da rede é
 \begin{equation}
 N(t)\approx N(0)+(\lambda-3\mu)t=N(0)+0{,}3t.
 \end{equation}
-A Figura~\ref{fig:unstable} mostra a trajetória registrada na primeira réplica de cada política e a reta $0{,}3t$. Em $T=5000$, a reta prevê 1500 requisições acumuladas. As médias finais foram $1580{,}6\pm73{,}9$, $1574{,}0\pm75{,}4$ e $1569{,}8\pm75{,}1$ para Aleatória, Round Robin e Fila Mais Curta. As diferenças de curto prazo vêm da variância de chegadas e serviços. Nenhuma política muda a inclinação assintótica, pois todas recebem mais trabalho do que a capacidade conjunta pode concluir.
 
 \begin{figure}[!t]
 \centering
@@ -125,16 +162,107 @@ A Figura~\ref{fig:unstable} mostra a trajetória registrada na primeira réplica
 \label{fig:unstable}
 \end{figure}
 
-\section{Reprodutibilidade e conclusão}
-O executável exporta médias, ICs, réplicas e rastreamento em CSV. O \texttt{README} explica compilação e execução em Linux e Windows. Os testes verificam o modelo M/M/1, a instabilidade, a Lei de Little, o rastreamento de filas e a ordenação das políticas. Rodrigo Camargo implementou simulador, políticas, métricas, testes e experimentos. André Loubet estruturou o relatório, os gráficos e a análise quantitativa. Ambos conferiram os parâmetros e os artefatos finais.
+A Figura~\ref{fig:unstable} usa a trajetória registrada na primeira réplica de cada política e a reta $0{,}3t$. Em $T=5000$, a reta prevê 1500 requisições acumuladas. As médias finais foram $1580{,}6\pm73{,}9$, $1574{,}0\pm75{,}4$ e $1569{,}8\pm75{,}1$ para Aleatória, RR e Fila Mais Curta. As diferenças de curto prazo vêm da variância de chegadas e serviços. Nenhuma política altera a inclinação assintótica, pois todas recebem mais trabalho do que a capacidade conjunta pode concluir.
 
-O resultado mostra a separação essencial entre capacidade e despacho. A conservação de trabalho preserva vazão e utilização na região estável, enquanto a informação de fila reduz atraso. A validação de Aleatória pelo modelo M/M/1 ancora essa comparação. Acima da capacidade total, nenhuma política de balanceamento torna o sistema estável. São necessários mais servidores ou limitação de admissão.
+\section{Implicações distribuídas e limites}
+O experimento requerido usa telemetria imediata e filas privadas, deliberadamente para isolar o efeito do despacho. Em uma implantação remota, a consulta de Fila Mais Curta seria uma leitura distribuída: mensagens de estado podem atrasar, perder-se ou refletir uma ocupação já alterada. O ganho observado é, portanto, o teto sob informação atual. Um mecanismo real deve definir frequência de atualização, timeout e comportamento quando o estado não está disponível.
+
+Uma fila única compartilhada é outra organização possível. Nela, a requisição é admitida uma vez e os trabalhadores fazem \textit{pull} quando ficam ociosos. Isso evita escolha baseada em visão parcial e, com servidores homogêneos e estado imediato, reproduz o objetivo de balancear a menor fila. Em contrapartida, centraliza coordenação e disponibilidade. Uma fila privada preserva isolamento dos servidores e simplifica o estado local, mas transfere ao dispatcher a responsabilidade de decidir o destino.
+
+Uma hierarquia de pools reduz a abrangência de cada consulta de estado. O primeiro nível selecionaria uma região ou pool e o segundo aplicaria uma política local. Essa alternativa favorece autonomia de falhas e escalabilidade geográfica, mas acrescenta uma decisão e telemetria entre níveis. Também não foi medida nesta matriz, porque o enunciado fixa três réplicas homogêneas. Da mesma forma, servidores heterogêneos exigiriam pesos proporcionais a $\mu_i$ ou uma regra de trabalho restante, pois a divisão uniforme deixa de ser naturalmente adequada.
+
+A admissão não é execução. Em uma fila distribuída, confirmação perdida pode causar nova tentativa e processamento duplicado. Um destino de contingência melhora disponibilidade apenas se a requisição possui identificador idempotente e o servidor deduplica reentregas. Partições, reinicialização de consumidores, eleição de líder e confirmação persistente ficam fora do simulador. O rastreamento por evento identifica a dinâmica da carga, mas não substitui esses protocolos de confiabilidade.
+
+A versão anterior do estudo avaliava rajadas, capacidades finitas e topologias adicionais. Esses números não são combinados às tabelas atuais porque violariam as hipóteses de Poisson, serviço exponencial, filas ilimitadas e três servidores homogêneos. O conteúdo arquitetural acima é preservado como análise de projeto. Os resultados quantitativos deste relatório vêm exclusivamente da configuração requerida e dos CSVs entregues.
+
+\section{Validade, cobertura e extensões}
+As variáveis aleatórias são geradas por fontes reproduzíveis e as dez réplicas são independentes entre si. Ainda assim, a estimativa possui incerteza finita, reportada pelos intervalos de 95\%. A escolha de $T=5000$ e do descarte inicial de 500 reduz o efeito do estado vazio da inicialização nas cargas estáveis. Ela não transforma o caso $\lambda=3{,}3$ em estacionário: para essa carga, o aquecimento é removido e a trajetória inteira é registrada, pois o crescimento é o fenômeno medido.
+
+Há três verificações de consistência que conectam implementação e modelo. Primeiro, sob Aleatória, os valores de $E[R]$ coincidem com a referência M/M/1 dentro da variação amostral. Segundo, nas 15 configurações estáveis, $X$ e $U_i$ permanecem próximos de $\lambda$ e $\lambda/(3\mu)$, respectivamente, para todas as políticas. Terceiro, a diferença entre $E[N]$ e $XE[R]$ é pequena quando ambos são calculados sobre a mesma janela. A Tabela~\ref{tab:checks} resume os pontos de maior pressão da validação.
+
+\begin{table}[!t]
+\caption{Verificações quantitativas da implementação.}
+\label{tab:checks}
+\centering
+\scriptsize
+\begin{tabular}{p{0.39\columnwidth}p{0.49\columnwidth}}
+\toprule
+Verificação & Evidência observada \\
+\midrule
+Baixa carga, $\lambda=0{,}6$ & $E[R]$ entre 1,022 e 1,243, próximo de $E[S]=1$ e da referência 1,250. \\
+Aleatória em $\lambda=2{,}7$ & $E[R]=9,712\pm0,677$, contra 10,000 analítico. \\
+Conservação em todas as cargas estáveis & $X\in[0,595,2,695]$ e $U_i\in[0,193,0,908]$. \\
+Maior erro de Little & $|E[N]-XE[R]|=0,127$, em Aleatória e $\lambda=2{,}7$. \\
+Sobrecarga, $\lambda=3{,}3$ & população final entre 1569,8 e 1580,6, próxima de $0,3T=1500$. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A validade externa é deliberadamente limitada. O modelo não inclui latência de rede, custo de serialização, falha de máquina, cache, escalonamento do sistema operacional ou telemetria defasada. Também assume serviço exponencial e três réplicas iguais. Essas simplificações são úteis porque permitem isolar o mecanismo do dispatcher e obter um oráculo analítico para Aleatória. Não autorizam, por si, previsão de latência de uma aplicação de produção.
+
+Dois prolongamentos preservariam a estrutura do simulador. Para capacidade finita $K$, uma réplica roteada aleatoriamente seria M/M/1/K, com $p_k=\rho^k(1-\rho)/(1-\rho^{K+1})$, perda $p_K$ e vazão efetiva $\lambda(1-p_K)$. Esse cenário troca espera ilimitada por perda de admissão. Para três servidores heterogêneos, uma distribuição estática natural usa $p_i=\mu_i/\sum_j\mu_j$, igualando aproximadamente as utilizações. Nenhuma das duas extensões é contabilizada nos resultados deste relatório, pois alteraria o modelo obrigatório.
+
+O registro por evento facilita a auditoria do caminho de cada requisição. Uma linha de rastreamento contém o instante após a transição, a população total, os três tamanhos de fila e as conclusões acumuladas. Com isso é possível verificar que Round Robin segue o ciclo, que Aleatória não mantém igualdade exata em toda amostra finita e que Fila Mais Curta resolve empates sem viés de identificador. A mesma observabilidade seria necessária numa implantação real, mas com timestamps sincronizados e uma política explícita para estado atrasado.
+
+\begin{table}[!t]
+\caption{Rastreabilidade entre requisito, implementação e artefato.}
+\label{tab:coverage}
+\centering
+\scriptsize
+\begin{tabular}{p{0.39\columnwidth}p{0.49\columnwidth}}
+\toprule
+Requisito & Evidência entregue \\
+\midrule
+Três filas FCFS e $\mu=1$ & Configuração padrão em \texttt{stationary} e testes de modelo. \\
+Três políticas configuráveis & Flag \texttt{-policy} e pacote \texttt{balancer}. \\
+15 médias e ICs de 95\% & \texttt{results.csv}, \texttt{trials.csv}, Tabelas~\ref{tab:responses}--\ref{tab:jobs}. \\
+Dinâmica de carga & \texttt{server\_trace.csv}, flag \texttt{-trace} e Figura~\ref{fig:unstable}. \\
+Execução reproduzível & \texttt{README}, fonte Go, análise Python, figuras e PDF no arquivo comprimido. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Auditoria operacional}
+O simulador trata a carga como um fluxo, não como um conjunto de clientes pré-criado. Após cada chegada, a próxima é agendada a partir de uma nova amostra exponencial. Após o encaminhamento, somente a fila escolhida pode iniciar serviço. Após uma partida, somente a própria réplica retira o próximo item FCFS. Essas três transições preservam as fronteiras entre dispatcher, fila local e thread de execução. Elas também evitam introduzir sem querer uma fila central, múltiplas threads ou serviço compartilhado, hipóteses que modificariam a comparação.
+
+O contador de atribuições e as utilizações não são métricas redundantes. Round Robin distribui atribuições quase exatamente em partes iguais, como mostra a Tabela~\ref{tab:highload}. Aleatória só produz igualdade em esperança e exibe pequenas diferenças finitas. Fila Mais Curta pode atribuir quantidades diferentes para compensar serviços já concluídos ou filas momentaneamente maiores. A métrica decisiva é o atraso observado, não a igualdade nominal de atribuições. Essa distinção impede concluir incorretamente que uma divisão perfeitamente uniforme sempre minimiza espera.
+
+\begin{table}[!t]
+\caption{Invariantes usados para auditar a dinâmica de eventos.}
+\label{tab:invariants}
+\centering
+\scriptsize
+\begin{tabular}{p{0.40\columnwidth}p{0.48\columnwidth}}
+\toprule
+Invariante & Regra aplicada \\
+\midrule
+Uma requisição em execução por réplica & A partida é o único evento que libera a thread. \\
+Ordem FCFS local & A partida inicia o item mais antigo da fila da mesma réplica. \\
+Estado visível na decisão & Partidas do mesmo instante são processadas antes de chegadas. \\
+Conservação de população & Chegada incrementa uma unidade, partida decrementa uma unidade. \\
+Traço reexecutável & Semente fixa reproduz eventos, métricas e arquivos CSV. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O cálculo de resposta associa uma chegada à sua partida e só agrega requisições concluídas na janela de medição. A população, em contraste, é integrada continuamente no tempo. Essa combinação explica por que a verificação de Little é um teste útil de duas partes independentes do código: uma depende da marcação de tempos individuais e outra depende da atualização de área a cada evento. Se a ordem de eventos, a contabilização de saídas ou os limites de janela estiverem errados, a igualdade deixa de se sustentar.
+
+A geração dos gráficos faz parte do caminho reproduzível. O comando do simulador escreve uma linha por política e carga em \texttt{results.csv}, uma linha por réplica em \texttt{trials.csv} e uma linha por evento em \texttt{server\_trace.csv}. O programa Python lê somente esses arquivos e copia as imagens para o diretório do relatório. Assim, a curva, barras de erro e valores tabelados não são transcritos manualmente. A entrega comprimida inclui fonte, testes, dados, script de análise, figuras e LaTeX, permitindo repetir a cadeia em Windows ou Linux.
+
+Por fim, a escolha das políticas expõe um compromisso conhecido em sistemas distribuídos. Aleatória não requer estado e é robusta a falhas de observação, mas aceita desequilíbrio. Round Robin exige apenas um contador, porém ignora duração de serviços e fila já acumulada. Fila Mais Curta reduz atraso quando a observação é atual, ao custo de comunicação de estado e possível decisão sobre dado vencido. Não há contradição entre o ganho experimental e esse custo operacional: o primeiro mede desempenho sob observação ideal, o segundo determina quando o ganho é preservado em uma implantação.
+
+\section{Reprodutibilidade, divisão e conclusão}
+O \texttt{README} documenta compilação, testes, execução de uma política, exportação dos CSVs e regeneração das figuras em Linux e Windows. Os testes cobrem modelo M/M/1, instabilidade, Lei de Little, rastreamento e ordenação de políticas. Rodrigo Camargo implementou simulador, políticas, métricas, testes e experimentos. André Loubet estruturou o relatório, os gráficos e a análise quantitativa. Ambos conferiram parâmetros, dados e artefatos.
+
+A simulação confirma que despacho informa o atraso, mas não amplia capacidade. Aleatória coincide com a referência M/M/1, RR reduz o desequilíbrio introduzido pelo sorteio e Fila Mais Curta apresenta as menores respostas. Acima de $3\mu$, nenhuma política torna a rede estável. Ações efetivas nesse regime são adicionar capacidade ou limitar admissão.
 
 \begin{thebibliography}{9}
 \bibitem{assignment}
 C. A. Astudillo Trujillo e D. M. da Cunha, ``Trabalho 1: Balanceador de Carga para um Sistema Distribuído,'' MC714, Unicamp, ago. 2026.
 \bibitem{ross}
 S. M. Ross, \textit{Introduction to Probability Models}, 12th ed. Academic Press, 2019.
+\bibitem{kleinrock}
+L. Kleinrock, \textit{Queueing Systems, Volume 1: Theory}. Wiley, 1975.
 \end{thebibliography}
 
 \end{document}
