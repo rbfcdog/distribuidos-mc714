@@ -5,6 +5,7 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{balance}
 
 \title{Balanceamento de Carga por Eventos Discretos\
 para um Sistema Distribuído}
@@ -140,6 +141,10 @@ As extensões avaliam topologias e políticas fora da matriz obrigatória. A pri
 
 A segunda família compara quatro trabalhadores heterogêneos em consulta plana e dois pools. A hierarquia acrescenta uma decisão de pool e outra de trabalhador. Sua resposta $0{,}04794$ fica a $0{,}04\%$ da consulta plana $0{,}04792$, quantificando o custo local de hierarquia sem alterar capacidade. Trabalho Mínimo reduz a resposta heterogênea de $0{,}06456$ para $0{,}05101$. Backup elimina 12 rejeições médias com resposta $0{,}05280$.
 
+Na fila privada, o front-end mantém a responsabilidade de escolher o destino e cada réplica possui estado isolado. Na fila única, a requisição é admitida uma vez e os trabalhadores fazem \textit{pull} quando ficam ociosos. Esta inversão elimina a escolha com base em uma visão parcial das filas, mas transforma o coordenador da fila em componente crítico. Em uma implantação distribuída, a fila deve particionar as mensagens, persistir a aceitação e recuperar consumidores, pois a indisponibilidade do coordenador interrompe a distribuição mesmo quando há capacidade de serviço.
+
+Os pools hierárquicos reduzem a abrangência de cada consulta de estado. O primeiro nível seleciona o pool e o segundo aplica a política local, preservando autonomia de falhas e permitindo escalar grupos em regiões distintas. O preço é uma decisão adicional e telemetria potencialmente atrasada entre pools. O cenário de backup também separa admissão de execução: uma rejeição do buffer principal é encaminhada ao servidor de contingência. Para impedir processamento duplicado após tentativas ou falhas de confirmação, uma versão remota precisa de identificador idempotente e deduplicação no destino.
+
 \begin{table}[!t]
 \caption{Arquiteturas e extensões na rajada 120. Os três primeiros casos usam três trabalhadores de capacidade um.}
 \centering
@@ -160,8 +165,16 @@ Pool hierárquico, quatro workers & 0,04794 & 0,0 & 0,0 \\
 \end{tabular}
 \end{table}
 
+\begin{figure}[!b]
+\centering
+\includegraphics[width=\columnwidth]{figures/architecture_comparison.png}
+\caption{Filas privadas, fila única e pools. A hierarquia preserva a resposta da consulta plana neste cenário.}
+\label{fig:architectures}
+\end{figure}
+
 \clearpage
 \section{Reprodutibilidade, entrega e cobertura}
+\balance
 A execução é determinística para uma semente e exporta os seis CSVs que alimentam tabelas e figuras. O \texttt{README} documenta compilação, testes, execução, rastreamento e regeneração em Linux e Windows. A Tabela~\ref{tab:coverage} torna explícita a cobertura dos itens exigidos no enunciado.
 
 \begin{table}[!t]
@@ -188,6 +201,11 @@ Extras: heterogêneo, backup e topologias & Seção V, Tabela IV e \texttt{extra
 \end{table}
 
 O arquivo comprimido reúne fonte Go, testes, análise Python, dados reproduzíveis, figuras, LaTeX e o guia de execução. Os nomes finais são {\scriptsize\texttt{relatorio\_projeto1\_rodrigo\_camargo.pdf}} e {\scriptsize\texttt{codigo\_projeto1\_rodrigo\_camargo.zip}}. O benchmark M/M/1 é uma validação adicional, mantida separada para não alterar as hipóteses do experimento obrigatório.
+
+\subsection*{Limitações de validade}
+As comparações de arquitetura são controladas, não projeções diretas de capacidade de produção. Elas reutilizam a mesma rajada finita e as mesmas sementes, isolando a consequência da topologia e da política. Os três trabalhadores do primeiro grupo são homogêneos e a telemetria é instantânea. Por isso, a equivalência entre fila compartilhada e Fila Mais Curta não se generaliza automaticamente para réplicas com tempos de serviço distintos, mensagens em trânsito ou leituras defasadas. Da mesma forma, a proximidade entre consulta plana e hierarquia mede apenas o custo local de uma decisão extra nesta carga.
+
+Uma implantação real acrescentaria latência de rede, partições, reinicialização de consumidores e confirmação de entrega. O rastreamento por evento identifica a sequência que cada experimento seguiu, mas não substitui protocolos de replicação da fila, eleição de líder, \textit{timeouts} ou semântica de entrega. O backup torna a admissão mais resiliente, porém exige chave idempotente para que uma repetição não execute a mesma operação duas vezes. Esses limites delimitam o que a simulação demonstra e quais mecanismos devem ser adicionados antes de operar a arquitetura distribuída.
 
 \section{Conclusão}
 O simulador atende o experimento obrigatório de rajadas e adiciona uma validação M/M/1 que demonstra cada expressão estacionária solicitada. Nas rajadas, todas as políticas mantêm a mesma vazão no horizonte e diferem apenas no atraso. No benchmark estacionário, conservação de trabalho preserva vazão e utilização, enquanto informação de fila reduz o tempo de resposta. A carga $\lambda=3{,}3$ evidencia que estabilidade é pré-condição para as fórmulas de regime permanente.
