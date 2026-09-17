@@ -56,6 +56,28 @@ EXTRA_COLUMNS = {
     "mean_rejected_full",
     "mean_backup_activations",
 }
+STATIONARY_COLUMNS = {
+    "policy",
+    "lambda",
+    "mu",
+    "servers",
+    "stable",
+    "rho",
+    "p0",
+    "analytical_jobs_per_server",
+    "analytical_queue_wait",
+    "analytical_response",
+    "analytical_throughput",
+    "analytical_utilization",
+    "fluid_backlog_rate",
+    "mean_throughput",
+    "mean_utilization",
+    "mean_jobs",
+    "mean_response",
+    "little_right",
+    "little_absolute_error",
+    "mean_final_jobs",
+}
 POLICY_LABELS = {
     "random": "Random",
     "round_robin": "Round robin",
@@ -77,6 +99,7 @@ def main() -> None:
     parser.add_argument("--traffic", type=Path, default=Path("data/traffic.csv"))
     parser.add_argument("--extras", type=Path, default=Path("data/extras.csv"))
     parser.add_argument("--output", type=Path, default=Path("figures"))
+    parser.add_argument("--stationary", type=Path, default=Path("data/stationary.csv"))
     args = parser.parse_args()
 
     results = read_csv(args.results, RESULT_COLUMNS)
@@ -84,7 +107,7 @@ def main() -> None:
     trace = read_csv(args.trace, TRACE_COLUMNS)
     traffic = read_csv(args.traffic, TRAFFIC_COLUMNS)
     extras = read_csv(args.extras, EXTRA_COLUMNS)
-    args.output.mkdir(parents=True, exist_ok=True)
+    stationary = read_csv(args.stationary, STATIONARY_COLUMNS)
 
     plot_traffic(traffic, args.output / "traffic_bounded_pareto.png")
     plot_metrics(results, args.output / "metrics_by_burst.png")
@@ -98,6 +121,7 @@ def main() -> None:
     plot_extras(extras, args.output / "extras_comparison.png")
     plot_architecture(extras, args.output / "architecture_comparison.png")
 
+    plot_stationary(stationary, args.output / "stationary_validation.png")
 
 def read_csv(path: Path, required_columns: set[str]) -> pd.DataFrame:
     if not path.is_file():
@@ -107,6 +131,56 @@ def read_csv(path: Path, required_columns: set[str]) -> pd.DataFrame:
     if missing:
         raise ValueError(f"{path} is missing columns: {', '.join(sorted(missing))}")
     return frame
+
+
+def plot_stationary(stationary: pd.DataFrame, output: Path) -> None:
+    stable = stationary.loc[stationary["stable"]].copy()
+    unstable = stationary.loc[~stationary["stable"]].copy()
+    if stable.empty or unstable.empty:
+        raise ValueError("stationary data must include stable and unstable rows")
+
+    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.4), constrained_layout=True)
+    for policy, group in stable.groupby("policy", sort=False):
+        ordered = group.sort_values("lambda")
+        axes[0].plot(
+            ordered["lambda"],
+            ordered["mean_response"],
+            marker="o",
+            linewidth=1.8,
+            color=COLORS[policy],
+            label=POLICY_LABELS[policy],
+        )
+    random_model = stable.loc[stable["policy"] == "random"].sort_values("lambda")
+    axes[0].plot(
+        random_model["lambda"],
+        random_model["analytical_response"],
+        linestyle="--",
+        color="#292929",
+        linewidth=1.5,
+        label=r"Random M/M/1 $1/(1-\lambda/3)$",
+    )
+    axes[0].set_ylabel("Mean response time")
+    axes[0].set_title("Stationary M/M/1 response")
+    axes[0].grid(alpha=0.25)
+    axes[0].legend(fontsize=6)
+
+    positions = np.arange(len(unstable))
+    bars = axes[1].bar(
+        positions,
+        unstable["mean_final_jobs"],
+        color=[COLORS[policy] for policy in unstable["policy"]],
+        label=r"Simulated $N(200)$",
+    )
+    fluid = float((unstable["fluid_backlog_rate"] * unstable["horizon"]).iloc[0])
+    axes[1].axhline(fluid, color="#292929", linestyle="--", linewidth=1.4, label=r"Fluid $0.3T$")
+    axes[1].bar_label(bars, fmt="%.1f", padding=2, fontsize=7)
+    axes[1].set_xticks(positions, [POLICY_LABELS[policy] for policy in unstable["policy"]])
+    axes[1].set_ylabel("Jobs at horizon")
+    axes[1].set_title(r"Unstable $\lambda=3.3$")
+    axes[1].grid(axis="y", alpha=0.25)
+    axes[1].legend(fontsize=7)
+    figure.savefig(output, dpi=220)
+    plt.close(figure)
 
 
 def bounded_pareto_pdf(x: np.ndarray) -> np.ndarray:

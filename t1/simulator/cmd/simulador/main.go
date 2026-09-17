@@ -15,6 +15,7 @@ import (
 	"mc714-t1/internal/domain"
 	"mc714-t1/internal/engine"
 	"mc714-t1/internal/experiment"
+	"mc714-t1/internal/stationary"
 )
 
 const (
@@ -36,7 +37,9 @@ func main() {
 	traceCSV := flag.String("trace-csv", "", "optional path for representative server-state CSV output")
 	trafficCSV := flag.String("traffic-csv", "", "optional path for representative inter-arrival CSV output")
 	extrasCSV := flag.String("extras-csv", "", "optional path for heterogeneous, backup, and multi-pool scenario CSV output")
+	stationaryCSV := flag.String("stationary-csv", "", "optional path for stationary M/M/1 validation CSV output")
 	runExtras := flag.Bool("extras", true, "run optional heterogeneous-server, overflow-backup, and multi-pool scenarios")
+	runStationary := flag.Bool("stationary", true, "run stationary M/M/1 policy, Little-law, and fluid validation scenarios")
 	flag.Parse()
 
 	policies := []balancer.Policy{balancer.Random, balancer.RoundRobin, balancer.ShortestQueue}
@@ -69,6 +72,11 @@ func main() {
 		extras = runOptionalScenarios(*seed)
 	}
 
+	stationarySummaries := []stationary.Summary(nil)
+	if *runStationary {
+		stationarySummaries = runStationaryBenchmarks(*seed)
+	}
+
 	if *resultsCSV != "" {
 		mustWrite("results CSV", writeResultsCSV(*resultsCSV, summaries))
 	}
@@ -83,6 +91,9 @@ func main() {
 	}
 	if *extrasCSV != "" {
 		mustWrite("extras CSV", writeExtrasCSV(*extrasCSV, extras))
+	}
+	if *stationaryCSV != "" {
+		mustWrite("stationary CSV", writeStationaryCSV(*stationaryCSV, stationarySummaries))
 	}
 }
 
@@ -120,6 +131,74 @@ func runOptionalScenarios(seed uint64) []extraResult {
 			summary.MeanRejectedFull, summary.MeanBackupActivations)
 	}
 	return results
+}
+
+func runStationaryBenchmarks(seed uint64) []stationary.Summary {
+	policies := []balancer.Policy{balancer.Random, balancer.RoundRobin, balancer.ShortestQueue}
+	stableLambdas := []float64{0.3, 0.9, 1.5, 2.1, 2.7}
+	summaries := make([]stationary.Summary, 0, len(policies)*(len(stableLambdas)+1))
+
+	fmt.Println("\nstationary M/M/1 validation")
+	fmt.Println("policy          lambda stable  X(sim/theory)  U(sim/theory)  L(sim/XR)   R(sim/theory)  final N")
+	for _, lambda := range stableLambdas {
+		for _, policy := range policies {
+			summary, err := stationary.Run(stationary.StableConfig(policy, lambda), trialCount, seed)
+			if err != nil {
+				log.Fatalf("stationary run %s/%.1f: %v", policy, lambda, err)
+			}
+			summaries = append(summaries, summary)
+			fmt.Printf("%-15s %6.1f  yes     %5.3f/%5.3f     %5.3f/%5.3f    %5.3f/%5.3f  %6.3f/%6.3f  %7.1f\n",
+				policy, lambda, summary.MeanThroughput, summary.Model.Throughput,
+				summary.MeanUtilization, summary.Model.Utilization,
+				summary.MeanJobs, summary.MeanLittleRight,
+				summary.MeanResponse, summary.Model.ExpectedResponse,
+				summary.MeanFinalJobs,
+			)
+		}
+	}
+	for _, policy := range policies {
+		summary, err := stationary.Run(stationary.UnstableConfig(policy, 3.3), trialCount, seed)
+		if err != nil {
+			log.Fatalf("fluid run %s: %v", policy, err)
+		}
+		summaries = append(summaries, summary)
+		fmt.Printf("%-15s %6.1f  no      %5.3f/%5.3f     %5.3f/%5.3f    %5.3f/%5.3f  %6.3f/  inf  %7.1f\n",
+			policy, summary.Lambda, summary.MeanThroughput, float64(summary.Servers)*summary.Mu,
+			summary.MeanUtilization, 1.0,
+			summary.MeanJobs, summary.MeanLittleRight,
+			summary.MeanResponse,
+			summary.MeanFinalJobs,
+		)
+	}
+	return summaries
+}
+
+func writeStationaryCSV(path string, summaries []stationary.Summary) error {
+	file, err := createCSV(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+	if err := writer.Write([]string{
+		"policy", "lambda", "mu", "servers", "stable", "trials", "horizon", "warmup",
+		"rho", "p0", "analytical_jobs_per_server", "analytical_queue_wait", "analytical_response", "analytical_throughput", "analytical_utilization", "fluid_backlog_rate",
+		"mean_throughput", "mean_utilization", "mean_jobs", "mean_response", "little_right", "little_absolute_error", "mean_final_jobs",
+	}); err != nil {
+		return err
+	}
+	for _, summary := range summaries {
+		if err := writer.Write([]string{
+			string(summary.Policy), float(summary.Lambda), float(summary.Mu), strconv.Itoa(summary.Servers), strconv.FormatBool(summary.Model.Stable), strconv.Itoa(summary.Trials), float(summary.Horizon), float(summary.Warmup),
+			float(summary.Model.Rho), float(summary.Model.P0), float(summary.Model.ExpectedJobs), float(summary.Model.ExpectedQueueWait), float(summary.Model.ExpectedResponse), float(summary.Model.Throughput), float(summary.Model.Utilization), float(summary.Model.FluidBacklogRate),
+			float(summary.MeanThroughput), float(summary.MeanUtilization), float(summary.MeanJobs), float(summary.MeanResponse), float(summary.MeanLittleRight), float(math.Abs(summary.MeanJobs - summary.MeanLittleRight)), float(summary.MeanFinalJobs),
+		}); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	return writer.Error()
 }
 
 func printTrace(policy balancer.Policy, burst int, samples []domain.ServerSample) {

@@ -1,6 +1,6 @@
 # MC714 — Trabalho 1: Balanceador de Carga
 
-Simulador de eventos discretos em Go para comparar políticas de balanceamento sob rajadas Bounded Pareto. O executável roda separadamente as rajadas de 30, 60, 90 e 120 requisições, com 10 repetições por política e horizonte de 200 unidades de tempo.
+Simulador de eventos discretos em Go para comparar políticas de balanceamento sob rajadas Bounded Pareto. O executável roda separadamente as rajadas de 30, 60, 90 e 120 requisições, com 10 repetições por política e horizonte de 200 unidades de tempo. Ele também executa um benchmark M/M/1 estacionário separado para validar distribuição geométrica, estabilidade, Lei de Little e o regime instável.
 
 ## Requisitos
 
@@ -36,7 +36,7 @@ Também é possível executar sem gerar um binário permanente:
 go run ./cmd/simulador
 ```
 
-A saída padrão apresenta as médias das 10 repetições, os valores analíticos e os cenários extras. Use `-extras=false` para executar somente a matriz obrigatória.
+A saída padrão apresenta as médias das 10 repetições, os valores analíticos, o benchmark M/M/1 e os cenários extras. Use `-extras=false` para suprimir extensões opcionais e `-stationary=false` para executar somente a matriz de rajadas.
 
 ## Monitorar a dinâmica dos servidores
 
@@ -64,7 +64,8 @@ go run ./cmd/simulador \
   -trials-csv ../analysis/data/trials.csv \
   -trace-csv ../analysis/data/server_trace.csv \
   -traffic-csv ../analysis/data/traffic.csv \
-  -extras-csv ../analysis/data/extras.csv
+  -extras-csv ../analysis/data/extras.csv \
+  -stationary-csv ../analysis/data/stationary.csv
 ```
 
 No Windows PowerShell, execute o mesmo comando em uma linha ou substitua `\` pelo acento grave `` ` `` de continuação.
@@ -76,11 +77,11 @@ uv sync
 uv run simulation-plots
 ```
 
-Os CSVs ficam em `analysis/data/` e as figuras em `analysis/figures/`.
+Os CSVs ficam em `analysis/data/` e as figuras em `analysis/figures/`. `stationary.csv` contém uma linha por política e carga, com valores analíticos, médias simuladas, termo direito de Little e tamanho final da fila.
 
 ## Recompilar o relatório
 
-Copie as figuras usadas pelo artigo para `report/figures/` e execute, a partir de `report/`:
+Copie `metrics_by_burst.png` e `stationary_validation.png` para `report/figures/` e execute, a partir de `report/`:
 
 ```sh
 pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
@@ -102,6 +103,7 @@ Esses nomes seguem o padrão definido no enunciado. São os dois arquivos que de
 - `simulator/internal/engine`: fila de eventos, servidores, filas e métricas.
 - `simulator/internal/balancer`: políticas obrigatórias e adicionais.
 - `simulator/internal/analytics`: modelo analítico de lote finito.
+- `simulator/internal/stationary`: benchmark M/M/1 por réplica e aproximação fluida instável.
 - `simulator/pkg/mathutil`: distribuição Bounded Pareto.
 - `analysis`: dados, geração de gráficos e comparação quantitativa.
 - `report`: fonte IEEE e figuras do relatório.
