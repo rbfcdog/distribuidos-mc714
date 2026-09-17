@@ -343,27 +343,44 @@ def plot_extras(extras: pd.DataFrame, output: Path) -> None:
     plt.close(figure)
 
 def plot_architecture(extras: pd.DataFrame, output: Path) -> None:
-    architecture = extras.loc[extras["scenario"].str.startswith("multi_pool_")].copy()
-    labels = {
-        "multi_pool_flat_least_work": "Flat least work",
-        "multi_pool_hierarchical": "Two-level hierarchy",
+    queues = extras.loc[extras["scenario"].str.startswith("architecture_")].copy()
+    pools = extras.loc[extras["scenario"].str.startswith("multi_pool_")].copy()
+    queue_labels = {
+        "architecture_private_random": "Private\nrandom",
+        "architecture_private_shortest_queue": "Private\nshortest",
+        "architecture_shared_queue": "Shared\nqueue",
     }
-    architecture["label"] = architecture["scenario"].map(labels)
-    architecture = architecture.dropna(subset=["label"])
-    if len(architecture) != len(labels):
-        raise ValueError("extras data must contain both multi-pool architecture scenarios")
+    pool_labels = {
+        "multi_pool_flat_least_work": "Flat\nleast work",
+        "multi_pool_hierarchical": "Two-level\nhierarchy",
+    }
+    queues["label"] = queues["scenario"].map(queue_labels)
+    pools["label"] = pools["scenario"].map(pool_labels)
+    queues = queues.dropna(subset=["label"])
+    pools = pools.dropna(subset=["label"])
+    if len(queues) != len(queue_labels) or len(pools) != len(pool_labels):
+        raise ValueError("extras data must contain shared-queue and multi-pool architecture scenarios")
 
-    figure, axis = plt.subplots(figsize=(4.35, 2.45), constrained_layout=True)
-    bars = axis.bar(
-        architecture["label"],
-        architecture["mean_response_time"],
+    figure, axes = plt.subplots(1, 2, figsize=(8.2, 3.0), constrained_layout=True)
+    shared_bars = axes[0].bar(
+        queues["label"],
+        queues["mean_response_time"],
+        color=["#b54747", "#2878b5", "#2b9348"],
+    )
+    axes[0].bar_label(shared_bars, fmt="%.3f", padding=3, fontsize=8)
+    axes[0].set_ylabel("Mean response time")
+    axes[0].set_title("Three-worker queue architecture")
+
+    pool_bars = axes[1].bar(
+        pools["label"],
+        pools["mean_response_time"],
         color=["#2878b5", "#e07a5f"],
     )
-    axis.bar_label(bars, fmt="%.5f", padding=3, fontsize=8)
-    axis.set_ylabel("Mean response time")
-    axis.set_title("Flat versus hierarchical multi-pool routing")
-    axis.set_ylim(0.04, architecture["mean_response_time"].max() * 1.12)
-    axis.grid(axis="y", alpha=0.25)
+    axes[1].bar_label(pool_bars, fmt="%.5f", padding=3, fontsize=8)
+    axes[1].set_ylabel("Mean response time")
+    axes[1].set_title("Four-worker pool architecture")
+    for axis in axes:
+        axis.grid(axis="y", alpha=0.25)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 

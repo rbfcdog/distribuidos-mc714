@@ -54,6 +54,10 @@ go run ./cmd/simulador -seed 20260831
 
 Políticas de uma mesma combinação de rajada e repetição recebem o mesmo tráfego. Rajadas de tamanhos diferentes e as 10 repetições usam fluxos independentes.
 
+## Cenários extras de arquitetura
+
+Além de servidores heterogêneos e backup, `-extras` executa três arquiteturas de fila com a rajada 120 e três trabalhadores homogêneos de capacidade um: filas privadas com escolha Aleatória, filas privadas com Fila Mais Curta e uma fila FIFO compartilhada de onde trabalhadores ociosos retiram trabalho. Também compara consulta plana com hierarquia de dois pools em quatro trabalhadores. Os resultados ficam em `extras.csv` e a figura comparativa em `architecture_comparison.png`.
+
 ## Regenerar dados e gráficos
 
 A partir de `simulator/`:

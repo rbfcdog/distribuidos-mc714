@@ -162,3 +162,50 @@ func mustPareto(interval float64) mathutil.BoundedPareto {
 func newRNG(seed uint64) *rand.Rand {
 	return rand.New(rand.NewPCG(seed, seed+1))
 }
+
+func TestSharedQueueCompletesBurstWithWorkerPull(t *testing.T) {
+	cfg := testConfig(30, 1, []ServerConfig{
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 0},
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 0},
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 0},
+	})
+	cfg.QueueArchitecture = SharedQueue
+	cfg.SharedQueueCapacity = 30
+	result, err := Run(cfg, newRNG(1), newRNG(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Accepted != 30 || result.Completed != 30 || result.RejectedFull != 0 {
+		t.Fatalf("accepted=%d completed=%d rejected=%d, want 30, 30, 0", result.Accepted, result.Completed, result.RejectedFull)
+	}
+	for _, server := range result.Servers {
+		if server.Completed != 10 {
+			t.Fatalf("server %d completed=%d, want 10", server.ID, server.Completed)
+		}
+	}
+}
+
+func TestSharedQueueReducesSkewAgainstRandomPrivateQueues(t *testing.T) {
+	servers := []ServerConfig{
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 30},
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 30},
+		{Capacity: 1, ServiceTime: 0.05, BufferCapacity: 30},
+	}
+	private := testConfig(30, 1, servers)
+	private.Policy = balancer.Random
+	shared := testConfig(30, 1, servers)
+	shared.QueueArchitecture = SharedQueue
+	shared.SharedQueueCapacity = 30
+
+	privateResult, err := Run(private, newRNG(1), newRNG(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sharedResult, err := Run(shared, newRNG(1), newRNG(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sharedResult.AverageResponseTime >= privateResult.AverageResponseTime {
+		t.Fatalf("shared response=%g, random private response=%g", sharedResult.AverageResponseTime, privateResult.AverageResponseTime)
+	}
+}

@@ -26,12 +26,21 @@ type ServerConfig struct {
 	Backup         bool
 }
 
+type QueueArchitecture uint8
+
+const (
+	PrivateQueues QueueArchitecture = iota
+	SharedQueue
+)
+
 type Config struct {
-	Policy       balancer.Policy
-	RequestCount int
-	Horizon      float64
-	Servers      []ServerConfig
-	InterArrival mathutil.BoundedPareto
+	Policy              balancer.Policy
+	RequestCount        int
+	Horizon             float64
+	Servers             []ServerConfig
+	InterArrival        mathutil.BoundedPareto
+	QueueArchitecture   QueueArchitecture
+	SharedQueueCapacity int
 }
 
 func DefaultConfig(policy balancer.Policy, requestCount int) Config {
@@ -86,6 +95,28 @@ func BoundedBufferConfig(policy balancer.Policy, requestCount int, backup bool) 
 		Horizon:      DefaultHorizon,
 		Servers:      servers,
 		InterArrival: defaultArrivalProcess(),
+	}
+}
+
+func PrivateQueueStressConfig(policy balancer.Policy, requestCount int) Config {
+	return Config{
+		Policy:       policy,
+		RequestCount: requestCount,
+		Horizon:      DefaultHorizon,
+		Servers:      homogeneousServers(DefaultServerCount, 1, DefaultServiceTime, requestCount),
+		InterArrival: defaultArrivalProcess(),
+	}
+}
+
+func SharedQueueConfig(requestCount int) Config {
+	return Config{
+		Policy:              balancer.LeastWork,
+		RequestCount:        requestCount,
+		Horizon:             DefaultHorizon,
+		Servers:             homogeneousServers(DefaultServerCount, 1, DefaultServiceTime, 0),
+		InterArrival:        defaultArrivalProcess(),
+		QueueArchitecture:   SharedQueue,
+		SharedQueueCapacity: requestCount,
 	}
 }
 
@@ -155,7 +186,8 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 	}
 
 	result := Result{Requested: cfg.RequestCount, DiscardedAtHorizon: discarded, Interarrivals: interarrivals}
-	result.Samples = appendSamples(result.Samples, 0, servers)
+	sharedQueue := make([]domain.Request, 0, cfg.SharedQueueCapacity)
+	result.Samples = appendSamples(result.Samples, 0, servers, len(sharedQueue))
 	clock := 0.0
 	var totalResponseTime float64
 	states := make([]balancer.ServerState, len(servers))
@@ -172,13 +204,25 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 
 		switch next.kind {
 		case arrivalEvent:
+			if cfg.QueueArchitecture == SharedQueue {
+				if len(sharedQueue) >= cfg.SharedQueueCapacity {
+					result.RejectedFull++
+					result.Samples = appendSamples(result.Samples, clock, servers, len(sharedQueue))
+					continue
+				}
+				result.Accepted++
+				sharedQueue = append(sharedQueue, next.request)
+				sequence = dispatchSharedQueue(&events, sequence, clock, servers, &sharedQueue)
+				break
+			}
+
 			updateRoutingStates(states, servers)
 			serverID := router.Route(states)
 			if !servers[serverID].canAdmit() {
 				serverID = selectBackup(servers)
 				if serverID < 0 {
 					result.RejectedFull++
-					result.Samples = appendSamples(result.Samples, clock, servers)
+					result.Samples = appendSamples(result.Samples, clock, servers, len(sharedQueue))
 					continue
 				}
 				result.BackupActivations++
@@ -203,6 +247,10 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 			selected.completed++
 			result.Completed++
 			totalResponseTime += clock - next.request.ArrivalTime
+			if cfg.QueueArchitecture == SharedQueue {
+				sequence = dispatchSharedQueue(&events, sequence, clock, servers, &sharedQueue)
+				break
+			}
 			if len(selected.queue) > 0 {
 				queued := selected.queue[0]
 				selected.queue[0] = domain.Request{}
@@ -211,14 +259,14 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 				sequence = scheduleDeparture(&events, sequence, clock+selected.config.ServiceTime, queued, selected.id)
 			}
 		}
-		result.Samples = appendSamples(result.Samples, clock, servers)
+		result.Samples = appendSamples(result.Samples, clock, servers, len(sharedQueue))
 	}
 
 	if clock < cfg.Horizon {
 		integrateBusyTime(servers, cfg.Horizon-clock)
 		clock = cfg.Horizon
 	}
-	result.Samples = appendSamples(result.Samples, cfg.Horizon, servers)
+	result.Samples = appendSamples(result.Samples, cfg.Horizon, servers, len(sharedQueue))
 	result.Unfinished = result.Accepted - result.Completed
 	result.Duration = cfg.Horizon
 	result.Throughput = float64(result.Completed) / cfg.Horizon
@@ -251,6 +299,12 @@ func (cfg Config) validate() error {
 	}
 	if len(cfg.Servers) == 0 {
 		return fmt.Errorf("at least one server is required")
+	}
+	if cfg.QueueArchitecture != PrivateQueues && cfg.QueueArchitecture != SharedQueue {
+		return fmt.Errorf("unsupported queue architecture %d", cfg.QueueArchitecture)
+	}
+	if cfg.SharedQueueCapacity < 0 {
+		return fmt.Errorf("shared queue capacity cannot be negative: %d", cfg.SharedQueueCapacity)
 	}
 	primaryCount := 0
 	for index, server := range cfg.Servers {
@@ -345,6 +399,38 @@ func selectBackup(servers []server) int {
 	return selected
 }
 
+func dispatchSharedQueue(events *eventQueue, sequence uint64, time float64, servers []server, queue *[]domain.Request) uint64 {
+	for len(*queue) > 0 {
+		serverID := selectSharedWorker(servers)
+		if serverID < 0 {
+			return sequence
+		}
+		request := (*queue)[0]
+		(*queue)[0] = domain.Request{}
+		*queue = (*queue)[1:]
+		selected := &servers[serverID]
+		selected.active++
+		selected.assigned++
+		sequence = scheduleDeparture(events, sequence, time+selected.config.ServiceTime, request, serverID)
+	}
+	return sequence
+}
+
+func selectSharedWorker(servers []server) int {
+	selected := -1
+	bestWork := math.Inf(1)
+	for index := range servers {
+		if servers[index].config.Backup || servers[index].active >= servers[index].config.Capacity {
+			continue
+		}
+		work := float64(servers[index].active+1) * servers[index].config.ServiceTime / float64(servers[index].config.Capacity)
+		if work < bestWork {
+			selected, bestWork = index, work
+		}
+	}
+	return selected
+}
+
 func integrateBusyTime(servers []server, elapsed float64) {
 	if elapsed <= 0 {
 		return
@@ -354,11 +440,15 @@ func integrateBusyTime(servers []server, elapsed float64) {
 	}
 }
 
-func appendSamples(samples []domain.ServerSample, time float64, servers []server) []domain.ServerSample {
+func appendSamples(samples []domain.ServerSample, time float64, servers []server, sharedQueueLength int) []domain.ServerSample {
 	for index := range servers {
+		queueLength := len(servers[index].queue)
+		if index == 0 {
+			queueLength += sharedQueueLength
+		}
 		samples = append(samples, domain.ServerSample{
 			Time: time, ServerID: servers[index].id, Active: servers[index].active,
-			QueueLength: len(servers[index].queue), Completed: servers[index].completed,
+			QueueLength: queueLength, Completed: servers[index].completed,
 			Capacity: servers[index].config.Capacity, Backup: servers[index].config.Backup,
 		})
 	}
