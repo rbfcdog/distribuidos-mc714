@@ -1,4 +1,3 @@
-// Package engine implements the discrete-event load-balancing simulation.
 package engine
 
 import (
@@ -19,8 +18,6 @@ const (
 	DefaultHorizon        = 200.0
 )
 
-// ServerConfig defines one server's concurrency, service speed, waiting buffer,
-// routing pool, and whether it is reserved for overflow traffic.
 type ServerConfig struct {
 	Capacity       int
 	ServiceTime    float64
@@ -29,7 +26,6 @@ type ServerConfig struct {
 	Backup         bool
 }
 
-// Config contains all inputs for one independent simulation trial.
 type Config struct {
 	Policy       balancer.Policy
 	RequestCount int
@@ -38,8 +34,6 @@ type Config struct {
 	InterArrival mathutil.BoundedPareto
 }
 
-// DefaultConfig returns the assignment's homogeneous server parameters and a
-// bounded-Pareto arrival process with Hurst parameter 0.8 (alpha 1.4).
 func DefaultConfig(policy balancer.Policy, requestCount int) Config {
 	return Config{
 		Policy:       policy,
@@ -50,8 +44,6 @@ func DefaultConfig(policy balancer.Policy, requestCount int) Config {
 	}
 }
 
-// HeterogeneousConfig demonstrates capacity-aware routing across primary
-// servers with different concurrency and service speed.
 func HeterogeneousConfig(policy balancer.Policy, requestCount int) Config {
 	return Config{
 		Policy:       policy,
@@ -66,8 +58,6 @@ func HeterogeneousConfig(policy balancer.Policy, requestCount int) Config {
 	}
 }
 
-// MultiPoolConfig defines two heterogeneous pools for comparing a flat
-// balancer with a hierarchical global-plus-local architecture.
 func MultiPoolConfig(policy balancer.Policy, requestCount int) Config {
 	return Config{
 		Policy:       policy,
@@ -83,8 +73,6 @@ func MultiPoolConfig(policy balancer.Policy, requestCount int) Config {
 	}
 }
 
-// BoundedBufferConfig gives each primary a deliberately small waiting buffer.
-// Add backup=true to provision an overflow server activated on saturation.
 func BoundedBufferConfig(policy balancer.Policy, requestCount int, backup bool) Config {
 	servers := homogeneousServers(DefaultServerCount, DefaultServerCapacity, DefaultServiceTime, 2)
 	if backup {
@@ -101,7 +89,6 @@ func BoundedBufferConfig(policy balancer.Policy, requestCount int, backup bool) 
 	}
 }
 
-// ServerResult summarizes a server at the end of a trial.
 type ServerResult struct {
 	ID          int
 	Assigned    int
@@ -111,7 +98,6 @@ type ServerResult struct {
 	Utilization float64
 }
 
-// Result contains the measurable outcome and complete state trace of a trial.
 type Result struct {
 	Requested           int
 	Accepted            int
@@ -129,8 +115,6 @@ type Result struct {
 	Samples             []domain.ServerSample
 }
 
-// Run executes one isolated trial. Separate traffic and routing sources keep
-// each policy's arrival trace identical for a given trial seed.
 func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 	if err := cfg.validate(); err != nil {
 		return Result{}, err
@@ -155,8 +139,8 @@ func Run(cfg Config, arrivalRNG, routingRNG *rand.Rand) (Result, error) {
 	arrivalTime := 0.0
 	discarded := 0
 	interarrivals := make([]float64, 0, cfg.RequestCount)
-	for id := range cfg.RequestCount {
-		interval := cfg.InterArrival.Sample(arrivalRNG)
+	sampledIntervals := cfg.InterArrival.SampleSequence(arrivalRNG, cfg.RequestCount)
+	for id, interval := range sampledIntervals {
 		interarrivals = append(interarrivals, interval)
 		arrivalTime += interval
 		if arrivalTime > cfg.Horizon {
@@ -289,7 +273,10 @@ func (cfg Config) validate() error {
 	if !positiveFinite(cfg.InterArrival.Lower) ||
 		!positiveFinite(cfg.InterArrival.Upper) ||
 		cfg.InterArrival.Upper < cfg.InterArrival.Lower ||
-		!positiveFinite(cfg.InterArrival.Alpha) {
+		!positiveFinite(cfg.InterArrival.Alpha) ||
+		!positiveFinite(cfg.InterArrival.Hurst) ||
+		cfg.InterArrival.Hurst < 0.5 ||
+		cfg.InterArrival.Hurst >= 1 {
 		return fmt.Errorf("invalid bounded Pareto inter-arrival distribution")
 	}
 	return nil
@@ -300,11 +287,7 @@ func positiveFinite(value float64) bool {
 }
 
 func defaultArrivalProcess() mathutil.BoundedPareto {
-	alpha, err := mathutil.AlphaForHurst(0.8)
-	if err != nil {
-		panic(err)
-	}
-	arrival, err := mathutil.NewBoundedPareto(0.0004, 0.04, alpha)
+	arrival, err := mathutil.NewBoundedPareto(0.0004, 0.04, 1.4, 0.8)
 	if err != nil {
 		panic(err)
 	}

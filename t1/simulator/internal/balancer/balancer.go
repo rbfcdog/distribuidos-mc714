@@ -1,4 +1,3 @@
-// Package balancer selects a destination server for accepted requests.
 package balancer
 
 import (
@@ -7,7 +6,6 @@ import (
 	rand "math/rand/v2"
 )
 
-// Policy identifies a supported load-balancing policy.
 type Policy string
 
 const (
@@ -20,9 +18,6 @@ const (
 	HierarchicalLeastWork Policy = "hierarchical_least_work"
 )
 
-// ServerState is the routing-visible state of one server. Backup servers are
-// excluded from normal routing and are activated by the simulation engine only
-// when a selected primary server cannot accept another request.
 type ServerState struct {
 	Active      int
 	Queued      int
@@ -32,8 +27,6 @@ type ServerState struct {
 	Backup      bool
 }
 
-// Router owns the state needed by a single simulation run. It is deliberately
-// not shared between runs, so independent trials cannot affect one another.
 type Router struct {
 	policy        Policy
 	rng           *rand.Rand
@@ -45,7 +38,6 @@ type Router struct {
 	topologySize  int
 }
 
-// NewRouter creates a router for policy. Stochastic policies require rng.
 func NewRouter(policy Policy, rng *rand.Rand) (*Router, error) {
 	if !policy.Valid() {
 		return nil, fmt.Errorf("unsupported balancing policy %q", policy)
@@ -56,9 +48,6 @@ func NewRouter(policy Policy, rng *rand.Rand) (*Router, error) {
 	return &Router{policy: policy, rng: rng}, nil
 }
 
-// Route returns the index of a primary server. ShortestQueue uses active plus
-// queued requests. Capacity-aware policies use each server's concurrency and
-// service time. Backup servers never participate in normal routing.
 func (r *Router) Route(states []ServerState) int {
 	candidates := r.primaryIndexes(states)
 	if len(candidates) == 0 {
@@ -105,7 +94,6 @@ func (r *Router) Route(states []ServerState) int {
 	}
 }
 
-// Valid reports whether policy is implemented.
 func (p Policy) Valid() bool {
 	switch p {
 	case Random, RoundRobin, WeightedRoundRobin, ShortestQueue, LeastWork, PowerOfTwo, HierarchicalLeastWork:
@@ -133,9 +121,6 @@ func (r *Router) routeWeighted(states []ServerState, candidates []int) int {
 	return selected
 }
 
-// routeHierarchical models a two-level balancer. The global level chooses the
-// pool with the smallest demand per aggregate service rate; the local level
-// then chooses the least-work server inside that pool.
 func (r *Router) routeHierarchical(states []ServerState) int {
 	selectedPool := 0
 	best := poolWork(states, r.pools[0])
@@ -173,7 +158,6 @@ func leastWork(states []ServerState, candidates []int) int {
 	return selected
 }
 
-// primaryIndexes caches the immutable topology used throughout one trial.
 func (r *Router) primaryIndexes(states []ServerState) []int {
 	if r.topologySize == len(states) && r.candidates != nil {
 		return r.candidates

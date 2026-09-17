@@ -108,8 +108,8 @@ func TestDefaultConfigMatchesAssignmentParameters(t *testing.T) {
 			t.Fatalf("unexpected default server: %#v", server)
 		}
 	}
-	if cfg.InterArrival.Alpha != 1.4 {
-		t.Fatalf("alpha = %g, want Hurst-derived 1.4", cfg.InterArrival.Alpha)
+	if cfg.InterArrival.Alpha != 1.4 || cfg.InterArrival.Hurst != 0.8 {
+		t.Fatalf("traffic parameters = alpha %g, H %g, want 1.4 and 0.8", cfg.InterArrival.Alpha, cfg.InterArrival.Hurst)
 	}
 }
 
@@ -152,7 +152,7 @@ func testConfig(requests int, horizon float64, servers []ServerConfig) Config {
 }
 
 func mustPareto(interval float64) mathutil.BoundedPareto {
-	arrivals, err := mathutil.NewBoundedPareto(interval, interval, 1.4)
+	arrivals, err := mathutil.NewBoundedPareto(interval, interval, 1.4, 0.5)
 	if err != nil {
 		panic(err)
 	}
