@@ -9,23 +9,27 @@ import (
 	"mc714-t1/internal/balancer"
 )
 
+// Assignment defaults define the mandatory stable and unstable experiments.
 const (
 	DefaultServers = 3
 	DefaultMu      = 1.0
-	StableHorizon  = 20000.0
-	StableWarmup   = 2000.0
-	FluidHorizon   = 200.0
+	DefaultHorizon = 5000.0
+	DefaultWarmup  = 500.0
+	UnstableLambda = 3.3
 )
 
+// Config specifies one policy, traffic rate, and measurement window.
 type Config struct {
-	Policy  balancer.Policy
-	Lambda  float64
-	Mu      float64
-	Servers int
-	Horizon float64
-	Warmup  float64
+	Policy       balancer.Policy
+	Lambda       float64
+	Mu           float64
+	Servers      int
+	Horizon      float64
+	Warmup       float64
+	CaptureTrace bool
 }
 
+// Model contains the M/M/1 analytical values for random routing.
 type Model struct {
 	Lambda            float64
 	Mu                float64
@@ -41,47 +45,71 @@ type Model struct {
 	FluidBacklogRate  float64
 }
 
+// Sample records the whole-system state immediately after one event.
+type Sample struct {
+	Time      float64
+	Jobs      int
+	Queues    []int
+	Completed []int
+}
+
+// Trial contains metrics from one independent replica.
 type Trial struct {
 	Throughput      float64
 	Utilization     float64
+	UtilizationByID []float64
 	AverageJobs     float64
 	AverageResponse float64
 	LittleRight     float64
 	FinalJobs       int
+	Assigned        []int
+	Samples         []Sample
 }
 
+// Summary aggregates replicas and their 95 percent confidence intervals.
 type Summary struct {
-	Policy          balancer.Policy
-	Lambda          float64
-	Mu              float64
-	Servers         int
-	Horizon         float64
-	Warmup          float64
-	Trials          int
-	Model           Model
-	MeanThroughput  float64
-	MeanUtilization float64
-	MeanJobs        float64
-	MeanResponse    float64
-	MeanLittleRight float64
-	MeanFinalJobs   float64
-	Runs            []Trial
+	Policy              balancer.Policy
+	Lambda              float64
+	Mu                  float64
+	Servers             int
+	Horizon             float64
+	Warmup              float64
+	Trials              int
+	Model               Model
+	MeanThroughput      float64
+	MeanUtilization     float64
+	MeanUtilizationByID []float64
+	MeanJobs            float64
+	MeanResponse        float64
+	MeanLittleRight     float64
+	MeanFinalJobs       float64
+	CI95Throughput      float64
+	CI95Utilization     float64
+	CI95Jobs            float64
+	CI95Response        float64
+	CI95LittleRight     float64
+	MeanAssigned        []float64
+	Runs                []Trial
+	Representative      Trial
 }
 
-func StableConfig(policy balancer.Policy, lambda float64) Config {
+// DefaultConfig creates one required stable experiment.
+func DefaultConfig(policy balancer.Policy, lambda float64) Config {
 	return Config{
 		Policy: policy, Lambda: lambda, Mu: DefaultMu, Servers: DefaultServers,
-		Horizon: StableHorizon, Warmup: StableWarmup,
+		Horizon: DefaultHorizon, Warmup: DefaultWarmup,
 	}
 }
 
-func UnstableConfig(policy balancer.Policy, lambda float64) Config {
+// UnstableConfig creates the required lambda 3.3 trace experiment.
+func UnstableConfig(policy balancer.Policy) Config {
 	return Config{
-		Policy: policy, Lambda: lambda, Mu: DefaultMu, Servers: DefaultServers,
-		Horizon: FluidHorizon,
+		Policy: policy, Lambda: UnstableLambda, Mu: DefaultMu, Servers: DefaultServers,
+		Horizon: DefaultHorizon,
 	}
 }
 
+// Analyze derives the random-routing three-queue M/M/1 model.
 func Analyze(lambda, mu float64, servers int) (Model, error) {
 	if !finitePositive(lambda) || !finitePositive(mu) || servers <= 0 {
 		return Model{}, fmt.Errorf("lambda, mu, and server count must be positive and finite")
@@ -106,6 +134,7 @@ func Analyze(lambda, mu float64, servers int) (Model, error) {
 	return model, nil
 }
 
+// Run executes independent replicas and computes sample confidence intervals.
 func Run(cfg Config, trials int, seed uint64) (Summary, error) {
 	if err := cfg.validate(); err != nil {
 		return Summary{}, err
@@ -120,20 +149,40 @@ func Run(cfg Config, trials int, seed uint64) (Summary, error) {
 	summary := Summary{
 		Policy: cfg.Policy, Lambda: cfg.Lambda, Mu: cfg.Mu, Servers: cfg.Servers,
 		Horizon: cfg.Horizon, Warmup: cfg.Warmup, Trials: trials, Model: model,
+		MeanUtilizationByID: make([]float64, cfg.Servers), MeanAssigned: make([]float64, cfg.Servers),
 		Runs: make([]Trial, 0, trials),
 	}
+	throughputs := make([]float64, 0, trials)
+	utilizations := make([]float64, 0, trials)
+	jobs := make([]float64, 0, trials)
+	responses := make([]float64, 0, trials)
+	littleRights := make([]float64, 0, trials)
 	for trial := range trials {
-		result, err := run(cfg, trialSeed(seed, cfg.Lambda, cfg.Policy, trial))
+		trialConfig := cfg
+		trialConfig.CaptureTrace = cfg.CaptureTrace && trial == 0
+		result, err := run(trialConfig, arrivalSeed(seed, cfg.Lambda, trial), routingSeed(seed, cfg.Policy, trial))
 		if err != nil {
 			return Summary{}, err
 		}
+		if trial == 0 {
+			summary.Representative = result
+		}
 		summary.Runs = append(summary.Runs, result)
+		throughputs = append(throughputs, result.Throughput)
+		utilizations = append(utilizations, result.Utilization)
+		jobs = append(jobs, result.AverageJobs)
+		responses = append(responses, result.AverageResponse)
+		littleRights = append(littleRights, result.LittleRight)
 		summary.MeanThroughput += result.Throughput
 		summary.MeanUtilization += result.Utilization
 		summary.MeanJobs += result.AverageJobs
 		summary.MeanResponse += result.AverageResponse
 		summary.MeanLittleRight += result.LittleRight
 		summary.MeanFinalJobs += float64(result.FinalJobs)
+		for index := range result.UtilizationByID {
+			summary.MeanUtilizationByID[index] += result.UtilizationByID[index]
+			summary.MeanAssigned[index] += float64(result.Assigned[index])
+		}
 	}
 	divisor := float64(trials)
 	summary.MeanThroughput /= divisor
@@ -142,13 +191,22 @@ func Run(cfg Config, trials int, seed uint64) (Summary, error) {
 	summary.MeanResponse /= divisor
 	summary.MeanLittleRight /= divisor
 	summary.MeanFinalJobs /= divisor
+	for index := range summary.MeanUtilizationByID {
+		summary.MeanUtilizationByID[index] /= divisor
+		summary.MeanAssigned[index] /= divisor
+	}
+	summary.CI95Throughput = ci95(throughputs)
+	summary.CI95Utilization = ci95(utilizations)
+	summary.CI95Jobs = ci95(jobs)
+	summary.CI95Response = ci95(responses)
+	summary.CI95LittleRight = ci95(littleRights)
 	return summary, nil
 }
 
-func run(cfg Config, seed uint64) (Trial, error) {
-	arrivalRNG := rand.New(rand.NewPCG(seed, 0x243f6a8885a308d3))
-	serviceRNG := rand.New(rand.NewPCG(seed, 0x13198a2e03707344))
-	routingRNG := rand.New(rand.NewPCG(seed, policySeed(cfg.Policy)))
+func run(cfg Config, arrivalSeed, routingSeed uint64) (Trial, error) {
+	arrivalRNG := rand.New(rand.NewPCG(arrivalSeed, 0x243f6a8885a308d3))
+	serviceRNG := rand.New(rand.NewPCG(arrivalSeed, 0x13198a2e03707344))
+	routingRNG := rand.New(rand.NewPCG(routingSeed, 0x8538ecf4f10d2f71))
 	router, err := balancer.NewRouter(cfg.Policy, routingRNG)
 	if err != nil {
 		return Trial{}, err
@@ -159,8 +217,7 @@ func run(cfg Config, seed uint64) (Trial, error) {
 	events := eventQueue{}
 	heap.Init(&events)
 	sequence := uint64(0)
-	nextArrival := exponential(arrivalRNG, cfg.Lambda)
-	heap.Push(&events, event{time: nextArrival, kind: arrivalEvent, sequence: sequence})
+	heap.Push(&events, event{time: exponential(arrivalRNG, cfg.Lambda), kind: arrivalEvent, sequence: sequence})
 	sequence++
 
 	clock := 0.0
@@ -168,15 +225,17 @@ func run(cfg Config, seed uint64) (Trial, error) {
 	completed := 0
 	responseTotal := 0.0
 	jobsIntegral := 0.0
-	busyIntegral := 0.0
+	busyIntegral := make([]float64, cfg.Servers)
+	assigned := make([]int, cfg.Servers)
+	samples := make([]Sample, 0)
 	for events.Len() > 0 {
 		next := heap.Pop(&events).(event)
 		if next.time > cfg.Horizon {
-			jobsIntegral, busyIntegral = integrate(servers, clock, cfg.Horizon, cfg.Warmup, jobsIntegral, busyIntegral)
+			integrate(servers, clock, cfg.Horizon, cfg.Warmup, &jobsIntegral, busyIntegral)
 			clock = cfg.Horizon
 			break
 		}
-		jobsIntegral, busyIntegral = integrate(servers, clock, next.time, cfg.Warmup, jobsIntegral, busyIntegral)
+		integrate(servers, clock, next.time, cfg.Warmup, &jobsIntegral, busyIntegral)
 		clock = next.time
 
 		switch next.kind {
@@ -185,6 +244,7 @@ func run(cfg Config, seed uint64) (Trial, error) {
 				states[index] = balancer.ServerState{Active: boolInt(servers[index].busy), Queued: len(servers[index].queue), Capacity: 1, ServiceTime: 1 / cfg.Mu}
 			}
 			serverID := router.Route(states)
+			assigned[serverID]++
 			request := request{id: requestID, arrival: clock}
 			requestID++
 			if !servers[serverID].busy {
@@ -193,7 +253,7 @@ func run(cfg Config, seed uint64) (Trial, error) {
 			} else {
 				servers[serverID].queue = append(servers[serverID].queue, request)
 			}
-			nextArrival = clock + exponential(arrivalRNG, cfg.Lambda)
+			nextArrival := clock + exponential(arrivalRNG, cfg.Lambda)
 			if nextArrival <= cfg.Horizon {
 				heap.Push(&events, event{time: nextArrival, kind: arrivalEvent, sequence: sequence})
 				sequence++
@@ -203,6 +263,7 @@ func run(cfg Config, seed uint64) (Trial, error) {
 			if !server.busy {
 				return Trial{}, fmt.Errorf("departure on idle server %d", next.serverID)
 			}
+			server.completed++
 			if next.request.arrival >= cfg.Warmup {
 				completed++
 				responseTotal += clock - next.request.arrival
@@ -216,17 +277,29 @@ func run(cfg Config, seed uint64) (Trial, error) {
 				sequence = scheduleDeparture(&events, sequence, clock+exponential(serviceRNG, cfg.Mu), next.serverID, queued)
 			}
 		}
+		if cfg.CaptureTrace && clock >= cfg.Warmup {
+			samples = append(samples, snapshot(clock, servers))
+		}
 	}
 	if clock < cfg.Horizon {
-		jobsIntegral, busyIntegral = integrate(servers, clock, cfg.Horizon, cfg.Warmup, jobsIntegral, busyIntegral)
+		integrate(servers, clock, cfg.Horizon, cfg.Warmup, &jobsIntegral, busyIntegral)
 	}
 
 	measurement := cfg.Horizon - cfg.Warmup
+	utilizationByID := make([]float64, cfg.Servers)
+	busyTotal := 0.0
+	for index := range busyIntegral {
+		utilizationByID[index] = busyIntegral[index] / measurement
+		busyTotal += busyIntegral[index]
+	}
 	result := Trial{
-		Throughput:  float64(completed) / measurement,
-		Utilization: busyIntegral / (measurement * float64(cfg.Servers)),
-		AverageJobs: jobsIntegral / measurement,
-		FinalJobs:   totalJobs(servers),
+		Throughput:      float64(completed) / measurement,
+		Utilization:     busyTotal / (measurement * float64(cfg.Servers)),
+		UtilizationByID: utilizationByID,
+		AverageJobs:     jobsIntegral / measurement,
+		FinalJobs:       totalJobs(servers),
+		Assigned:        assigned,
+		Samples:         samples,
 	}
 	if completed > 0 {
 		result.AverageResponse = responseTotal / float64(completed)
@@ -237,27 +310,35 @@ func run(cfg Config, seed uint64) (Trial, error) {
 
 func (cfg Config) validate() error {
 	if !cfg.Policy.Valid() || !finitePositive(cfg.Lambda) || !finitePositive(cfg.Mu) || cfg.Servers <= 0 || !finitePositive(cfg.Horizon) || cfg.Warmup < 0 || cfg.Warmup >= cfg.Horizon {
-		return fmt.Errorf("invalid stationary experiment configuration")
+		return fmt.Errorf("invalid simulation configuration")
 	}
 	return nil
 }
 
-func integrate(servers []server, start, end, warmup, jobsIntegral, busyIntegral float64) (float64, float64) {
+func integrate(servers []server, start, end, warmup float64, jobsIntegral *float64, busyIntegral []float64) {
 	from := math.Max(start, warmup)
 	if end <= from {
-		return jobsIntegral, busyIntegral
+		return
 	}
 	elapsed := end - from
 	jobs := 0
-	busy := 0
-	for _, server := range servers {
+	for index, server := range servers {
 		jobs += len(server.queue)
 		if server.busy {
 			jobs++
-			busy++
+			busyIntegral[index] += elapsed
 		}
 	}
-	return jobsIntegral + float64(jobs)*elapsed, busyIntegral + float64(busy)*elapsed
+	*jobsIntegral += float64(jobs) * elapsed
+}
+
+func snapshot(time float64, servers []server) Sample {
+	sample := Sample{Time: time, Jobs: totalJobs(servers), Queues: make([]int, len(servers)), Completed: make([]int, len(servers))}
+	for index, server := range servers {
+		sample.Queues[index] = len(server.queue) + boolInt(server.busy)
+		sample.Completed[index] = server.completed
+	}
+	return sample
 }
 
 func totalJobs(servers []server) int {
@@ -269,6 +350,24 @@ func totalJobs(servers []server) int {
 		}
 	}
 	return jobs
+}
+
+func ci95(values []float64) float64 {
+	if len(values) < 2 {
+		return 0
+	}
+	mean := 0.0
+	for _, value := range values {
+		mean += value
+	}
+	mean /= float64(len(values))
+	variance := 0.0
+	for _, value := range values {
+		delta := value - mean
+		variance += delta * delta
+	}
+	standardError := math.Sqrt(variance/float64(len(values)-1)) / math.Sqrt(float64(len(values)))
+	return 2.2621571628540993 * standardError
 }
 
 func exponential(rng *rand.Rand, rate float64) float64 {
@@ -286,8 +385,12 @@ func finitePositive(value float64) bool {
 	return value > 0 && !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
-func trialSeed(seed uint64, lambda float64, policy balancer.Policy, trial int) uint64 {
-	return seed ^ math.Float64bits(lambda)*0x9e3779b97f4a7c15 ^ policySeed(policy) ^ uint64(trial)*0xbf58476d1ce4e5b9
+func arrivalSeed(seed uint64, lambda float64, trial int) uint64 {
+	return seed ^ math.Float64bits(lambda)*0x9e3779b97f4a7c15 ^ uint64(trial)*0xbf58476d1ce4e5b9
+}
+
+func routingSeed(seed uint64, policy balancer.Policy, trial int) uint64 {
+	return seed ^ policySeed(policy) ^ uint64(trial)*0x94d049bb133111eb
 }
 
 func policySeed(policy balancer.Policy) uint64 {
@@ -309,8 +412,9 @@ type request struct {
 }
 
 type server struct {
-	busy  bool
-	queue []request
+	busy      bool
+	queue     []request
+	completed int
 }
 
 type eventKind uint8
