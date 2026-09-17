@@ -11,6 +11,8 @@ import (
 	"strconv"
 
 	"mc714-t1/internal/balancer"
+	"mc714-t1/internal/engine"
+	"mc714-t1/internal/experiment"
 	"mc714-t1/internal/stationary"
 )
 
@@ -27,6 +29,7 @@ func main() {
 	trialsCSV := flag.String("trials-csv", "", "optional path for per-replica CSV output")
 	traceCSV := flag.String("trace-csv", "", "optional path for event trace CSV output")
 	heterogeneousCSV := flag.String("heterogeneous-csv", "", "optional path for the heterogeneous-server extension CSV")
+	boundedParetoArchitecturesCSV := flag.String("bounded-pareto-architectures-csv", "", "optional path for the Bounded Pareto architecture-extension CSV")
 	flag.Parse()
 
 	policies, err := selectPolicies(*policyFlag)
@@ -51,6 +54,9 @@ func main() {
 	}
 	if *heterogeneousCSV != "" {
 		mustWrite("heterogeneous CSV", writeHeterogeneousCSV(*heterogeneousCSV, runHeterogeneous(*seed)))
+	}
+	if *boundedParetoArchitecturesCSV != "" {
+		mustWrite("Bounded Pareto architectures CSV", writeBoundedParetoArchitecturesCSV(*boundedParetoArchitecturesCSV, runBoundedParetoArchitectures(*seed)))
 	}
 }
 
@@ -90,6 +96,72 @@ func writeHeterogeneousCSV(path string, summaries []stationary.Summary) error {
 	}
 	writer.Flush()
 	return writer.Error()
+}
+
+type boundedParetoArchitecture struct {
+	name         string
+	architecture string
+	config       engine.Config
+}
+
+type boundedParetoResult struct {
+	boundedParetoArchitecture
+	summary experiment.Summary
+}
+
+func runBoundedParetoArchitectures(seed uint64) []boundedParetoResult {
+	scenarios := []boundedParetoArchitecture{
+		{name: "private_queues", architecture: "filas_privadas", config: engine.PrivateQueueStressConfig(balancer.LeastWork, 120)},
+		{name: "shared_queue", architecture: "fila_compartilhada", config: engine.SharedQueueConfig(120)},
+		{name: "bounded_buffers", architecture: "buffers_limitados", config: engine.BoundedBufferConfig(balancer.LeastWork, 120, false)},
+		{name: "backup_overflow", architecture: "backup_de_overflow", config: engine.BoundedBufferConfig(balancer.LeastWork, 120, true)},
+		{name: "multi_pool", architecture: "pools_hierarquicos", config: engine.MultiPoolConfig(balancer.HierarchicalLeastWork, 120)},
+	}
+	results := make([]boundedParetoResult, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		summary, err := experiment.Run(scenario.config, trialCount, seed)
+		if err != nil {
+			log.Fatalf("run Bounded Pareto scenario %s: %v", scenario.name, err)
+		}
+		results = append(results, boundedParetoResult{boundedParetoArchitecture: scenario, summary: summary})
+	}
+	return results
+}
+
+func writeBoundedParetoArchitecturesCSV(path string, results []boundedParetoResult) error {
+	file, err := createCSV(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+	if err := writer.Write([]string{
+		"scenario", "architecture", "policy", "requests", "servers", "horizon", "trials",
+		"mean_throughput", "ci95_throughput", "mean_response", "ci95_response",
+		"mean_utilization", "mean_unfinished", "mean_rejected_full", "mean_backup_activations",
+	}); err != nil {
+		return err
+	}
+	for _, result := range results {
+		summary := result.summary
+		if err := writer.Write([]string{
+			result.name, result.architecture, summary.Policy, strconv.Itoa(summary.BurstSize), strconv.Itoa(len(result.config.Servers)), float(result.config.Horizon), strconv.Itoa(summary.Trials),
+			float(summary.MeanThroughput), float(experimentCI95(summary.StdThroughput, summary.Trials)), float(summary.MeanResponseTime), float(experimentCI95(summary.StdResponseTime, summary.Trials)),
+			float(summary.MeanUtilization), float(summary.MeanUnfinished), float(summary.MeanRejectedFull), float(summary.MeanBackupActivations),
+		}); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	return writer.Error()
+}
+
+func experimentCI95(sampleStd float64, trials int) float64 {
+	if trials < 2 {
+		return 0
+	}
+	return 2.2621571628540993 * sampleStd / math.Sqrt(float64(trials))
 }
 
 func selectPolicies(value string) ([]balancer.Policy, error) {
