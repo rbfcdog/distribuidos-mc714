@@ -21,7 +21,7 @@ RESULT_COLUMNS = {
     "ci95_throughput",
     "mean_jobs",
     "little_right",
-    "little_absolute_error",
+    "ci95_jobs",
 }
 TRACE_COLUMNS = {"policy", "lambda", "time", "jobs"}
 POLICIES = ("random", "round_robin", "shortest_queue")
@@ -41,6 +41,7 @@ def main() -> None:
     args.output.mkdir(parents=True, exist_ok=True)
     plot_response(results, args.output / "response_comparison.png")
     plot_unstable(trace, args.output / "unstable_queues.png")
+    plot_jobs(results, args.output / "jobs_comparison.png")
     args.report_output.mkdir(parents=True, exist_ok=True)
     for figure in args.output.glob("*.png"):
         shutil.copy2(figure, args.report_output / figure.name)
@@ -69,6 +70,20 @@ def plot_response(results: pd.DataFrame, output: Path) -> None:
     axis.set_xticks(sorted(stable["lambda"].unique()))
     axis.grid(axis="y", alpha=0.25)
     axis.legend(fontsize=7)
+    figure.savefig(output, dpi=220)
+    plt.close(figure)
+
+def plot_jobs(results: pd.DataFrame, output: Path) -> None:
+    stable = results.loc[results["stable"]].copy()
+    figure, axis = plt.subplots(figsize=(4.35, 1.7), constrained_layout=True)
+    for policy in POLICIES:
+        rows = stable.loc[stable["policy"] == policy].sort_values("lambda")
+        axis.errorbar(rows["lambda"], rows["mean_jobs"], yerr=rows["ci95_jobs"], marker="o", capsize=3, linewidth=1.2, color=COLORS[policy], label=LABELS[policy])
+    axis.set_xlabel("Taxa de chegada λ")
+    axis.set_ylabel("População média E[N]")
+    axis.set_xticks(sorted(stable["lambda"].unique()))
+    axis.grid(axis="y", alpha=0.25)
+    axis.legend(fontsize=7, ncol=3, loc="upper left")
     figure.savefig(output, dpi=220)
     plt.close(figure)
 
