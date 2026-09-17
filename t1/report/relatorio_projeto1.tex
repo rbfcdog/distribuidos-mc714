@@ -112,27 +112,17 @@ $\lambda$ & Aleatória & RR & ganho RR & Fila curta & ganho F \\
 
 A Tabela~\ref{tab:responses} confirma $E[R]_{\mathrm{Fila\ Curta}}\leq E[R]_{\mathrm{RR}}\leq E[R]_{\mathrm{Aleat.}}$ em todas as cargas. Round Robin elimina a variabilidade de sorteio de destinos. Fila Mais Curta usa a ocupação atual e evita encaminhar para uma réplica maior quando há alternativa. Em $\lambda=2{,}7$, os ganhos são 31,6\% para Round Robin e 59,8\% para Fila Mais Curta. Em carga baixa, as três curvas tendem ao tempo de serviço médio de uma unidade, o cheque de sanidade esperado.
 
-\begin{table}[!t]
-\caption{População média $E[N]$ com IC de 95\%.}
-\label{tab:jobs}
+
+O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\ref{fig:jobs}. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A Tabela~\ref{tab:highload} mostra que a utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações.
+
+\begin{figure}[H]
 \centering
-\scriptsize
-\begin{tabular}{rrrr}
-\toprule
-$\lambda$ & Aleatória & RR & Fila curta \\
-\midrule
-0,6 & 0,740$\pm$0,019 & 0,631$\pm$0,014 & 0,608$\pm$0,014 \\
-1,2 & 2,005$\pm$0,071 & 1,539$\pm$0,029 & 1,354$\pm$0,019 \\
-1,8 & 4,609$\pm$0,214 & 3,345$\pm$0,174 & 2,593$\pm$0,098 \\
-2,4 & 11,375$\pm$0,702 & 7,622$\pm$0,327 & 5,151$\pm$0,179 \\
-2,7 & 26,262$\pm$1,877 & 17,959$\pm$2,260 & 10,539$\pm$0,867 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\includegraphics[width=\columnwidth]{figures/jobs_comparison.png}
+\caption{População simulada $E[N]$ com IC de 95\% nas cargas estáveis.}
+\label{fig:jobs}
+\end{figure}
 
-O benefício de observar carga aparece também em $E[N]$. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A Tabela~\ref{tab:highload} mostra que a utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações.
-
-\begin{table}[!t]
+\begin{table}[H]
 \caption{Estado médio em $\lambda=2{,}7$. $A_i$ é o número médio de atribuições por réplica.}
 \label{tab:highload}
 \centering
@@ -216,7 +206,7 @@ Requisito & Evidência entregue \\
 \midrule
 Três filas FCFS e $\mu=1$ & Configuração padrão em \texttt{stationary} e testes de modelo. \\
 Três políticas configuráveis & Flag \texttt{-policy} e pacote \texttt{balancer}. \\
-15 médias e ICs de 95\% & \texttt{results.csv}, \texttt{trials.csv}, Tabelas~\ref{tab:responses}--\ref{tab:jobs}. \\
+15 médias e ICs de 95\% & \texttt{results.csv}, \texttt{trials.csv}, Tabela~\ref{tab:responses} e Figuras~\ref{fig:response} e~\ref{fig:jobs}. \\
 Dinâmica de carga & \texttt{server\_trace.csv}, flag \texttt{-trace} e Figura~\ref{fig:unstable}. \\
 Execução reproduzível & \texttt{README}, fonte Go, análise Python, CSVs obrigatório e heterogêneo, figuras e PDF no arquivo comprimido. \\
 \bottomrule

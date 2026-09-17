@@ -54,6 +54,7 @@ go run ./cmd/simulador \
   -trace-csv ../analysis/data/server_trace.csv \
   -heterogeneous-csv ../analysis/data/heterogeneous.csv
 
+```
 A partir de `analysis/`:
 
 ```sh
@@ -61,7 +62,7 @@ uv sync
 uv run simulation-plots
 ```
 
-Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Os gráficos gerados são `response_comparison.png` e `unstable_queues.png`.
+Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Os gráficos gerados são `response_comparison.png`, `jobs_comparison.png` e `unstable_queues.png`.
 
 ## Recompilar o relatório
 
