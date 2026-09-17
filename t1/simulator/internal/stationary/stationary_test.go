@@ -90,6 +90,30 @@ func TestTraceCapturesQueueDynamics(t *testing.T) {
 	}
 }
 
+func TestWeightedRoutingKeepsHeterogeneousServersStable(t *testing.T) {
+	rates := []float64{1.5, 1.0, 0.5}
+	run := func(policy balancer.Policy) Summary {
+		summary, err := Run(HeterogeneousConfig(policy, 2.4, rates), 10, 20260917)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return summary
+	}
+	roundRobin := run(balancer.RoundRobin)
+	weighted := run(balancer.WeightedRoundRobin)
+	if roundRobin.MeanFinalJobs < 1000 {
+		t.Fatalf("uniform routing did not overload the slow server: final jobs=%g", roundRobin.MeanFinalJobs)
+	}
+	if weighted.MeanFinalJobs > 20 {
+		t.Fatalf("weighted routing did not stabilize the network: final jobs=%g", weighted.MeanFinalJobs)
+	}
+	for _, utilization := range weighted.MeanUtilizationByID {
+		if math.Abs(utilization-0.8) > 0.03 {
+			t.Fatalf("weighted utilization=%g, want about 0.8", utilization)
+		}
+	}
+}
+
 func assertClose(t *testing.T, got, want float64) {
 	t.Helper()
 	if math.Abs(got-want) > 1e-12 {

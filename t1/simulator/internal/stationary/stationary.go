@@ -18,11 +18,13 @@ const (
 	UnstableLambda = 3.3
 )
 
-// Config specifies one policy, traffic rate, and measurement window.
+// Config specifies one policy, traffic rate, and measurement window. Mu applies
+// to every server unless ServiceRates supplies one rate per server.
 type Config struct {
 	Policy       balancer.Policy
 	Lambda       float64
 	Mu           float64
+	ServiceRates []float64
 	Servers      int
 	Horizon      float64
 	Warmup       float64
@@ -106,6 +108,15 @@ func UnstableConfig(policy balancer.Policy) Config {
 	return Config{
 		Policy: policy, Lambda: UnstableLambda, Mu: DefaultMu, Servers: DefaultServers,
 		Horizon: DefaultHorizon,
+	}
+}
+
+// HeterogeneousConfig creates the optional experiment with one service rate per server.
+func HeterogeneousConfig(policy balancer.Policy, lambda float64, serviceRates []float64) Config {
+	rates := append([]float64(nil), serviceRates...)
+	return Config{
+		Policy: policy, Lambda: lambda, Mu: DefaultMu, ServiceRates: rates, Servers: len(rates),
+		Horizon: DefaultHorizon, Warmup: DefaultWarmup,
 	}
 }
 
@@ -241,7 +252,7 @@ func run(cfg Config, arrivalSeed, routingSeed uint64) (Trial, error) {
 		switch next.kind {
 		case arrivalEvent:
 			for index := range servers {
-				states[index] = balancer.ServerState{Active: boolInt(servers[index].busy), Queued: len(servers[index].queue), Capacity: 1, ServiceTime: 1 / cfg.Mu}
+				states[index] = balancer.ServerState{Active: boolInt(servers[index].busy), Queued: len(servers[index].queue), Capacity: 1, ServiceTime: 1 / cfg.serviceRate(index)}
 			}
 			serverID := router.Route(states)
 			assigned[serverID]++
@@ -249,7 +260,7 @@ func run(cfg Config, arrivalSeed, routingSeed uint64) (Trial, error) {
 			requestID++
 			if !servers[serverID].busy {
 				servers[serverID].busy = true
-				sequence = scheduleDeparture(&events, sequence, clock+exponential(serviceRNG, cfg.Mu), serverID, request)
+				sequence = scheduleDeparture(&events, sequence, clock+exponential(serviceRNG, cfg.serviceRate(serverID)), serverID, request)
 			} else {
 				servers[serverID].queue = append(servers[serverID].queue, request)
 			}
@@ -274,7 +285,7 @@ func run(cfg Config, arrivalSeed, routingSeed uint64) (Trial, error) {
 				queued := server.queue[0]
 				server.queue[0] = request{}
 				server.queue = server.queue[1:]
-				sequence = scheduleDeparture(&events, sequence, clock+exponential(serviceRNG, cfg.Mu), next.serverID, queued)
+				sequence = scheduleDeparture(&events, sequence, clock+exponential(serviceRNG, cfg.serviceRate(next.serverID)), next.serverID, queued)
 			}
 		}
 		if cfg.CaptureTrace && clock >= cfg.Warmup {
@@ -312,7 +323,24 @@ func (cfg Config) validate() error {
 	if !cfg.Policy.Valid() || !finitePositive(cfg.Lambda) || !finitePositive(cfg.Mu) || cfg.Servers <= 0 || !finitePositive(cfg.Horizon) || cfg.Warmup < 0 || cfg.Warmup >= cfg.Horizon {
 		return fmt.Errorf("invalid simulation configuration")
 	}
+	if len(cfg.ServiceRates) > 0 {
+		if len(cfg.ServiceRates) != cfg.Servers {
+			return fmt.Errorf("service rate count %d does not match server count %d", len(cfg.ServiceRates), cfg.Servers)
+		}
+		for _, rate := range cfg.ServiceRates {
+			if !finitePositive(rate) {
+				return fmt.Errorf("service rates must be positive and finite")
+			}
+		}
+	}
 	return nil
+}
+
+func (cfg Config) serviceRate(serverID int) float64 {
+	if len(cfg.ServiceRates) == 0 {
+		return cfg.Mu
+	}
+	return cfg.ServiceRates[serverID]
 }
 
 func integrate(servers []server, start, end, warmup float64, jobsIntegral *float64, busyIntegral []float64) {

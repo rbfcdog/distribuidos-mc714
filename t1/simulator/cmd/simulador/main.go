@@ -26,6 +26,7 @@ func main() {
 	resultsCSV := flag.String("results-csv", "", "optional path for summary CSV output")
 	trialsCSV := flag.String("trials-csv", "", "optional path for per-replica CSV output")
 	traceCSV := flag.String("trace-csv", "", "optional path for event trace CSV output")
+	heterogeneousCSV := flag.String("heterogeneous-csv", "", "optional path for the heterogeneous-server extension CSV")
 	flag.Parse()
 
 	policies, err := selectPolicies(*policyFlag)
@@ -48,6 +49,47 @@ func main() {
 	if *traceCSV != "" {
 		mustWrite("trace CSV", writeTraceCSV(*traceCSV, summaries))
 	}
+	if *heterogeneousCSV != "" {
+		mustWrite("heterogeneous CSV", writeHeterogeneousCSV(*heterogeneousCSV, runHeterogeneous(*seed)))
+	}
+}
+
+var heterogeneousRates = []float64{1.5, 1.0, 0.5}
+
+func runHeterogeneous(seed uint64) []stationary.Summary {
+	summaries := make([]stationary.Summary, 0, 2)
+	for _, policy := range []balancer.Policy{balancer.RoundRobin, balancer.WeightedRoundRobin} {
+		summaries = append(summaries, mustRun(stationary.HeterogeneousConfig(policy, 2.4, heterogeneousRates), seed))
+	}
+	return summaries
+}
+
+func writeHeterogeneousCSV(path string, summaries []stationary.Summary) error {
+	file, err := createCSV(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+	if err := writer.Write([]string{
+		"policy", "lambda", "mu_0", "mu_1", "mu_2", "trials", "horizon", "warmup",
+		"mean_throughput", "ci95_throughput", "mean_response", "ci95_response", "mean_final_jobs", "ci95_final_jobs",
+		"mean_utilization_0", "mean_utilization_1", "mean_utilization_2",
+	}); err != nil {
+		return err
+	}
+	for _, summary := range summaries {
+		if err := writer.Write([]string{
+			string(summary.Policy), float(summary.Lambda), float(heterogeneousRates[0]), float(heterogeneousRates[1]), float(heterogeneousRates[2]), strconv.Itoa(summary.Trials), float(summary.Horizon), float(summary.Warmup),
+			float(summary.MeanThroughput), float(summary.CI95Throughput), float(summary.MeanResponse), float(summary.CI95Response), float(summary.MeanFinalJobs), float(ci95FinalJobs(summary.Runs)),
+			float(summary.MeanUtilizationByID[0]), float(summary.MeanUtilizationByID[1]), float(summary.MeanUtilizationByID[2]),
+		}); err != nil {
+			return err
+		}
+	}
+	writer.Flush()
+	return writer.Error()
 }
 
 func selectPolicies(value string) ([]balancer.Policy, error) {

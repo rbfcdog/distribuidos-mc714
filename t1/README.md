@@ -51,8 +51,8 @@ A partir de `simulator/`:
 go run ./cmd/simulador \
   -results-csv ../analysis/data/results.csv \
   -trials-csv ../analysis/data/trials.csv \
-  -trace-csv ../analysis/data/server_trace.csv
-```
+  -trace-csv ../analysis/data/server_trace.csv \
+  -heterogeneous-csv ../analysis/data/heterogeneous.csv
 
 A partir de `analysis/`:
 
@@ -61,7 +61,7 @@ uv sync
 uv run simulation-plots
 ```
 
-Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. Os gráficos gerados são `response_comparison.png` e `unstable_queues.png`.
+Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Os gráficos gerados são `response_comparison.png` e `unstable_queues.png`.
 
 ## Recompilar o relatório
 
@@ -76,8 +76,8 @@ O relatório final é `relatorio_projeto1_rodrigo_camargo.pdf`. O arquivo compac
 
 ## Estrutura
 
-- `simulator/internal/balancer`: as três políticas de encaminhamento.
-- `simulator/internal/stationary`: fila de eventos, servidores FCFS, métricas, modelo M/M/1 e testes.
+- `simulator/internal/balancer`: as políticas obrigatórias e o Round Robin ponderado do ponto extra.
+- `simulator/internal/stationary`: fila de eventos, servidores FCFS, métricas, modelo M/M/1, configuração heterogênea e testes.
 - `simulator/cmd/simulador`: configuração por linha de comando e exportação CSV.
 - `analysis`: gráficos da comparação e da instabilidade.
 - `report`: fonte IEEE e figuras do relatório.

@@ -5,8 +5,9 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{float}
 
-\title{Balanceador de Carga com Filas M/M/1\\
+\title{Balanceador de Carga\\
 para um Sistema Distribuído}
 
 \author{\IEEEauthorblockN{Rodrigo Camargo \quad André Loubet}
@@ -21,11 +22,11 @@ Implementamos em Go um simulador de eventos discretos para um balanceador instan
 \end{abstract}
 
 \section{Arquitetura, políticas e implementação}
-O sistema possui um front-end que recebe cada requisição e seleciona uma de três réplicas antes da admissão. O dispatcher não consome tempo. Cada réplica possui uma única thread, fila FCFS ilimitada e tempo de serviço exponencial de média $1/\mu=1$. Chegadas têm intervalos exponenciais independentes de taxa total $\lambda$. Portanto, os únicos gargalos são as três threads e suas filas privadas.
+O sistema possui um front-end que recebe cada requisição e seleciona uma de três réplicas antes da admissão. O dispatcher não consome tempo. Cada réplica possui uma única thread, fila FCFS ilimitada e tempo de serviço exponencial de média $1/\mu=1$. Chegadas têm intervalos exponenciais independentes de taxa total $\lambda$. Portanto, os únicos gargalos são as três threads e suas filas privadas. A Tabela~\ref{tab:policies} resume a informação usada em cada decisão de encaminhamento.
 
 A simulação usa uma fila mínima de eventos. Uma chegada cria a próxima chegada e encaminha a requisição conforme a política. Uma partida libera a thread e inicia a próxima requisição local, quando existir. Partidas vencem chegadas no mesmo instante. Esta ordem impede que uma chegada observe uma thread ainda marcada como ocupada no próprio instante em que ela termina. O integrador soma $N(t)\Delta t$ entre eventos, logo $E[N]$ é área temporal, não média de amostras de chegada.
 
-\begin{table}[!t]
+\begin{table}[H]
 \caption{Decisão do dispatcher e informação utilizada.}
 \label{tab:policies}
 \centering
@@ -169,11 +170,11 @@ O experimento requerido usa telemetria imediata e filas privadas, deliberadament
 
 Uma fila única compartilhada é outra organização possível. Nela, a requisição é admitida uma vez e os trabalhadores fazem \textit{pull} quando ficam ociosos. Isso evita escolha baseada em visão parcial e, com servidores homogêneos e estado imediato, reproduz o objetivo de balancear a menor fila. Em contrapartida, centraliza coordenação e disponibilidade. Uma fila privada preserva isolamento dos servidores e simplifica o estado local, mas transfere ao dispatcher a responsabilidade de decidir o destino.
 
-Uma hierarquia de pools reduz a abrangência de cada consulta de estado. O primeiro nível selecionaria uma região ou pool e o segundo aplicaria uma política local. Essa alternativa favorece autonomia de falhas e escalabilidade geográfica, mas acrescenta uma decisão e telemetria entre níveis. Também não foi medida nesta matriz, porque o enunciado fixa três réplicas homogêneas. Da mesma forma, servidores heterogêneos exigiriam pesos proporcionais a $\mu_i$ ou uma regra de trabalho restante, pois a divisão uniforme deixa de ser naturalmente adequada.
+Uma hierarquia de pools reduz a abrangência de cada consulta de estado. O primeiro nível selecionaria uma região ou pool e o segundo aplicaria uma política local. Essa alternativa favorece autonomia de falhas e escalabilidade geográfica, mas acrescenta uma decisão e telemetria entre níveis. Também não foi medida nesta matriz, porque o enunciado fixa três réplicas homogêneas. A extensão heterogênea medida abaixo usa pesos proporcionais a $\mu_i$, pois a divisão uniforme deixa de ser naturalmente adequada.
 
 A admissão não é execução. Em uma fila distribuída, confirmação perdida pode causar nova tentativa e processamento duplicado. Um destino de contingência melhora disponibilidade apenas se a requisição possui identificador idempotente e o servidor deduplica reentregas. Partições, reinicialização de consumidores, eleição de líder e confirmação persistente ficam fora do simulador. O rastreamento por evento identifica a dinâmica da carga, mas não substitui esses protocolos de confiabilidade.
 
-A versão anterior do estudo avaliava rajadas, capacidades finitas e topologias adicionais. Esses números não são combinados às tabelas atuais porque violariam as hipóteses de Poisson, serviço exponencial, filas ilimitadas e três servidores homogêneos. O conteúdo arquitetural acima é preservado como análise de projeto. Os resultados quantitativos deste relatório vêm exclusivamente da configuração requerida e dos CSVs entregues.
+A versão anterior do estudo avaliava rajadas, capacidades finitas e topologias adicionais. Esses números não são combinados às tabelas atuais porque violariam as hipóteses de Poisson, serviço exponencial, filas ilimitadas e três servidores homogêneos. O conteúdo arquitetural acima é preservado como análise de projeto. Os resultados quantitativos vêm da configuração requerida, exceto pelo ponto extra heterogêneo explicitamente identificado a seguir.
 
 \section{Validade, cobertura e extensões}
 As variáveis aleatórias são geradas por fontes reproduzíveis e as dez réplicas são independentes entre si. Ainda assim, a estimativa possui incerteza finita, reportada pelos intervalos de 95\%. A escolha de $T=5000$ e do descarte inicial de 500 reduz o efeito do estado vazio da inicialização nas cargas estáveis. Ela não transforma o caso $\lambda=3{,}3$ em estacionário: para essa carga, o aquecimento é removido e a trajetória inteira é registrada, pois o crescimento é o fenômeno medido.
@@ -200,7 +201,7 @@ Sobrecarga, $\lambda=3{,}3$ & população final entre 1569,8 e 1580,6, próxima 
 
 A validade externa é deliberadamente limitada. O modelo não inclui latência de rede, custo de serialização, falha de máquina, cache, escalonamento do sistema operacional ou telemetria defasada. Também assume serviço exponencial e três réplicas iguais. Essas simplificações são úteis porque permitem isolar o mecanismo do dispatcher e obter um oráculo analítico para Aleatória. Não autorizam, por si, previsão de latência de uma aplicação de produção.
 
-Dois prolongamentos preservariam a estrutura do simulador. Para capacidade finita $K$, uma réplica roteada aleatoriamente seria M/M/1/K, com $p_k=\rho^k(1-\rho)/(1-\rho^{K+1})$, perda $p_K$ e vazão efetiva $\lambda(1-p_K)$. Esse cenário troca espera ilimitada por perda de admissão. Para três servidores heterogêneos, uma distribuição estática natural usa $p_i=\mu_i/\sum_j\mu_j$, igualando aproximadamente as utilizações. Nenhuma das duas extensões é contabilizada nos resultados deste relatório, pois alteraria o modelo obrigatório.
+Como ponto extra, testamos servidores heterogêneos com $\boldsymbol{\mu}=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Round Robin uniforme envia $0{,}8$ para cada réplica, logo sobrecarrega a terceira ($\rho_3=1{,}6$), apesar da capacidade total ser 3. A política \texttt{weighted\_round\_robin} usa $p_i=\mu_i/\sum_j\mu_j=(1/2,1/3,1/6)$ e obtém taxas $(1{,}2,0{,}8,0{,}4)$, todas com $\rho_i=0{,}8$. Em dez réplicas, RR uniforme terminou com $1477{,}1\pm66{,}9$ requisições, $X=2{,}061\pm0{,}010$ e $E[R]=246{,}110\pm8{,}402$; a ponderada terminou com $6{,}5\pm3{,}5$, $X=2{,}388\pm0{,}016$ e $E[R]=3{,}272\pm0{,}177$. As utilizações ponderadas foram $0{,}790/0{,}793/0{,}795$. Os dados estão em \texttt{heterogeneous.csv}; esta extensão não altera as conclusões do cenário obrigatório homogêneo.
 
 O registro por evento facilita a auditoria do caminho de cada requisição. Uma linha de rastreamento contém o instante após a transição, a população total, os três tamanhos de fila e as conclusões acumuladas. Com isso é possível verificar que Round Robin segue o ciclo, que Aleatória não mantém igualdade exata em toda amostra finita e que Fila Mais Curta resolve empates sem viés de identificador. A mesma observabilidade seria necessária numa implantação real, mas com timestamps sincronizados e uma política explícita para estado atrasado.
 
@@ -217,7 +218,7 @@ Três filas FCFS e $\mu=1$ & Configuração padrão em \texttt{stationary} e tes
 Três políticas configuráveis & Flag \texttt{-policy} e pacote \texttt{balancer}. \\
 15 médias e ICs de 95\% & \texttt{results.csv}, \texttt{trials.csv}, Tabelas~\ref{tab:responses}--\ref{tab:jobs}. \\
 Dinâmica de carga & \texttt{server\_trace.csv}, flag \texttt{-trace} e Figura~\ref{fig:unstable}. \\
-Execução reproduzível & \texttt{README}, fonte Go, análise Python, figuras e PDF no arquivo comprimido. \\
+Execução reproduzível & \texttt{README}, fonte Go, análise Python, CSVs obrigatório e heterogêneo, figuras e PDF no arquivo comprimido. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -252,7 +253,7 @@ A geração dos gráficos faz parte do caminho reproduzível. O comando do simul
 Por fim, a escolha das políticas expõe um compromisso conhecido em sistemas distribuídos. Aleatória não requer estado e é robusta a falhas de observação, mas aceita desequilíbrio. Round Robin exige apenas um contador, porém ignora duração de serviços e fila já acumulada. Fila Mais Curta reduz atraso quando a observação é atual, ao custo de comunicação de estado e possível decisão sobre dado vencido. Não há contradição entre o ganho experimental e esse custo operacional: o primeiro mede desempenho sob observação ideal, o segundo determina quando o ganho é preservado em uma implantação.
 
 \section{Reprodutibilidade, divisão e conclusão}
-O \texttt{README} documenta compilação, testes, execução de uma política, exportação dos CSVs e regeneração das figuras em Linux e Windows. Os testes cobrem modelo M/M/1, instabilidade, Lei de Little, rastreamento e ordenação de políticas. Rodrigo Camargo implementou simulador, políticas, métricas, testes e experimentos. André Loubet estruturou o relatório, os gráficos e a análise quantitativa. Ambos conferiram parâmetros, dados e artefatos.
+O \texttt{README} documenta compilação, testes, execução de uma política, exportação dos CSVs e regeneração das figuras em Linux e Windows. Os testes cobrem modelo M/M/1, instabilidade, Lei de Little, rastreamento, ordenação de políticas e o ponto extra heterogêneo. \textbf{Rodrigo Camargo}: implementou o simulador de eventos, as políticas, os modelos analíticos, os CSVs, os testes e a execução experimental. \textbf{André Loubet}: estruturou o relatório IEEE, organizou tabelas e figuras, revisou a comparação quantitativa e a apresentação dos resultados. \textbf{Atividades conjuntas}: conferência dos parâmetros, interpretação dos dados e validação dos artefatos finais.
 
 A simulação confirma que despacho informa o atraso, mas não amplia capacidade. Aleatória coincide com a referência M/M/1, RR reduz o desequilíbrio introduzido pelo sorteio e Fila Mais Curta apresenta as menores respostas. Acima de $3\mu$, nenhuma política torna a rede estável. Ações efetivas nesse regime são adicionar capacidade ou limitar admissão.
 
