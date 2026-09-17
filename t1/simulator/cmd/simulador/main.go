@@ -1,4 +1,3 @@
-// simulador runs the required policy and burst-size experiment matrix.
 package main
 
 import (

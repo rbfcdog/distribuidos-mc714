@@ -1,4 +1,3 @@
-"""Render publication-ready figures from the Go simulator CSV exports."""
 
 from __future__ import annotations
 

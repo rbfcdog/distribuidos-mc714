@@ -1,5 +1,3 @@
-// Package analytics provides a finite-burst analytical baseline for comparison
-// with the discrete-event simulation.
 package analytics
 
 import (
@@ -7,15 +5,11 @@ import (
 	"math"
 )
 
-// Server describes one primary server in the analytical model.
 type Server struct {
 	Capacity    int
 	ServiceTime float64
 }
 
-// Model describes an instantaneous finite burst routed independently and
-// uniformly among the primary servers. It is a transient batch model, not a
-// steady-state queue.
 type Model struct {
 	BurstSize             int
 	Horizon               float64
@@ -28,10 +22,6 @@ type Model struct {
 	AverageResponseTime   float64
 }
 
-// Calculate evaluates a finite batch of requestCount requests arriving at time
-// zero. A request transitions to each server with probability 1/len(servers).
-// The binomial occupancy of each server gives exact expected completions, busy
-// slot-time, and response time for this worst-case instantaneous micro-burst.
 func Calculate(requestCount int, horizon float64, servers []Server) (Model, error) {
 	if requestCount <= 0 {
 		return Model{}, fmt.Errorf("request count must be positive: %d", requestCount)

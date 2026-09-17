@@ -1,4 +1,3 @@
-// Package experiment runs independent trials and compares them with theory.
 package experiment
 
 import (
@@ -11,7 +10,6 @@ import (
 	"mc714-t1/internal/engine"
 )
 
-// Trial is one independent repetition of a policy/burst scenario.
 type Trial struct {
 	Index               int
 	Throughput          float64
@@ -24,7 +22,6 @@ type Trial struct {
 	Assigned            []int
 }
 
-// Summary aggregates one policy and burst-size scenario over independent runs.
 type Summary struct {
 	Policy                  string
 	BurstSize               int
@@ -46,9 +43,6 @@ type Summary struct {
 	Representative          engine.Result
 }
 
-// Run executes independent simulations. Traffic streams depend on burst size
-// and trial, but not policy, enabling paired policy comparisons without reusing
-// the same arrival prefix across different burst-size experiments.
 func Run(cfg engine.Config, trials int, seed uint64) (Summary, error) {
 	if trials <= 0 {
 		return Summary{}, fmt.Errorf("trial count must be positive: %d", trials)
