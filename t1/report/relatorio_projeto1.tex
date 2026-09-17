@@ -113,7 +113,7 @@ $\lambda$ & Aleatória & RR & ganho RR & Fila curta & ganho F \\
 A Tabela~\ref{tab:responses} confirma $E[R]_{\mathrm{Fila\ Curta}}\leq E[R]_{\mathrm{RR}}\leq E[R]_{\mathrm{Aleat.}}$ em todas as cargas. Round Robin elimina a variabilidade de sorteio de destinos. Fila Mais Curta usa a ocupação atual e evita encaminhar para uma réplica maior quando há alternativa. Em $\lambda=2{,}7$, os ganhos são 31,6\% para Round Robin e 59,8\% para Fila Mais Curta. Em carga baixa, as três curvas tendem ao tempo de serviço médio de uma unidade, o cheque de sanidade esperado.
 
 
-O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\ref{fig:jobs}. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações. A Figura~\ref{fig:pareto_arch} apresenta, separadamente, as arquiteturas com tráfego Bounded Pareto.
+O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\ref{fig:jobs}. Na maior carga estável, Fila Mais Curta mantém 10,539 requisições médias, contra 26,262 da escolha aleatória. A utilização média permanece próxima de 0,9 para todas as políticas. A diferença de população não é capacidade ociosa, mas desbalanceamento entre filas privadas. Aleatória pode enviar uma chegada para uma fila longa mesmo com outra menor. Round Robin limita esse efeito pelo ciclo. Fila Mais Curta reage ao estado instantâneo e aproxima as ocupações.
 
 \begin{figure}[H]
 \centering
@@ -122,12 +122,6 @@ O benefício de observar carga aparece também em $E[N]$, como mostra a Figura~\
 \label{fig:jobs}
 \end{figure}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=\columnwidth]{figures/bounded_pareto_architectures.png}
-\caption{Extensão Bounded Pareto: vazão e eventos de admissão em cinco arquiteturas.}
-\label{fig:pareto_arch}
-\end{figure}
 
 A Lei de Little foi verificada no sistema inteiro como $E[N]=X E[R]$. Na carga mais exigente, os pares $E[N]$ e $XE[R]$ foram 26,262 e 26,136 para Aleatória, 17,959 e 17,900 para RR, e 10,539 e 10,523 para Fila Mais Curta. O maior erro absoluto entre as 15 combinações foi 0,127, na primeira dessas medições. A integração temporal é essencial, pois a média de filas vista somente nas chegadas amostra outra distribuição.
 
@@ -183,7 +177,17 @@ A validade externa é deliberadamente limitada. O modelo não inclui latência d
 
 Como ponto extra, testamos servidores heterogêneos com $\boldsymbol{\mu}=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. Round Robin uniforme envia $0{,}8$ para cada réplica, logo sobrecarrega a terceira ($\rho_3=1{,}6$), apesar da capacidade total ser 3. A política \texttt{weighted\_round\_robin} usa $p_i=\mu_i/\sum_j\mu_j=(1/2,1/3,1/6)$ e obtém taxas $(1{,}2,0{,}8,0{,}4)$, todas com $\rho_i=0{,}8$. Em dez réplicas, RR uniforme terminou com $1477{,}1\pm66{,}9$ requisições, $X=2{,}061\pm0{,}010$ e $E[R]=246{,}110\pm8{,}402$; a ponderada terminou com $6{,}5\pm3{,}5$, $X=2{,}388\pm0{,}016$ e $E[R]=3{,}272\pm0{,}177$. As utilizações ponderadas foram $0{,}790/0{,}793/0{,}795$. Os dados estão em \texttt{heterogeneous.csv}; esta extensão não altera as conclusões do cenário obrigatório homogêneo.
 
-Como extensão não-Poisson, medimos com Bounded Pareto, 120 requisições e dez réplicas: filas privadas, fila compartilhada, buffers limitados, backup de \textit{overflow} e pools hierárquicos. A Figura~\ref{fig:pareto_arch} mostra os resultados. Buffers limitaram $X$ a $0{,}521\pm0{,}040$ e rejeitaram 15,8 requisições; backup recuperou $X=0{,}600$ sem rejeições, com 15,8 ativações. Filas privadas, compartilhada e pools completaram $X=0{,}600$. Como as capacidades diferem, não há ranking de latência.
+\subsection{Tráfego Bounded Pareto e arquiteturas extras}
+Esta extensão substitui as chegadas Poisson por tráfego Bounded Pareto e, portanto, não usa a análise M/M/1 nem altera as tabelas obrigatórias. Em 120 requisições e dez réplicas, medimos cinco arquiteturas: filas privadas, fila compartilhada, buffers limitados, backup de \textit{overflow} e pools hierárquicos. A Figura~\ref{fig:pareto_arch} resume vazão e eventos de admissão.
+
+Buffers limitaram $X$ a $0{,}521\pm0{,}040$ e rejeitaram 15,8 requisições; backup recuperou $X=0{,}600$ sem rejeições, com 15,8 ativações. Filas privadas, compartilhada e pools completaram $X=0{,}600$. Como as capacidades diferem, não há ranking de latência.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{figures/bounded_pareto_architectures.png}
+\caption{Extensão Bounded Pareto: vazão e eventos de admissão em cinco arquiteturas.}
+\label{fig:pareto_arch}
+\end{figure}
 
 O registro por evento facilita a auditoria do caminho de cada requisição. Uma linha de rastreamento contém o instante após a transição, a população total, os três tamanhos de fila e as conclusões acumuladas. Com isso é possível verificar que Round Robin segue o ciclo, que Aleatória não mantém igualdade exata em toda amostra finita e que Fila Mais Curta resolve empates sem viés de identificador. A mesma observabilidade seria necessária numa implantação real, mas com timestamps sincronizados e uma política explícita para estado atrasado.
 
