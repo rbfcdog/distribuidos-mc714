@@ -6,6 +6,7 @@ import (
 	rand "math/rand/v2"
 )
 
+// Policy identifies a routing rule available to the dispatcher.
 type Policy string
 
 const (
@@ -18,6 +19,7 @@ const (
 	HierarchicalLeastWork Policy = "hierarchical_least_work"
 )
 
+// ServerState is the load snapshot observed when a request is routed.
 type ServerState struct {
 	Active      int
 	Queued      int
@@ -27,6 +29,7 @@ type ServerState struct {
 	Backup      bool
 }
 
+// Router retains the state required by a routing rule across requests.
 type Router struct {
 	policy        Policy
 	rng           *rand.Rand
@@ -38,16 +41,18 @@ type Router struct {
 	topologySize  int
 }
 
+// NewRouter validates and initializes a configured routing rule.
 func NewRouter(policy Policy, rng *rand.Rand) (*Router, error) {
 	if !policy.Valid() {
 		return nil, fmt.Errorf("unsupported balancing policy %q", policy)
 	}
-	if (policy == Random || policy == PowerOfTwo) && rng == nil {
+	if (policy == Random || policy == ShortestQueue || policy == PowerOfTwo) && rng == nil {
 		return nil, fmt.Errorf("%s policy requires a random source", policy)
 	}
 	return &Router{policy: policy, rng: rng}, nil
 }
 
+// Route returns a primary server chosen from the supplied load snapshot.
 func (r *Router) Route(states []ServerState) int {
 	candidates := r.primaryIndexes(states)
 	if len(candidates) == 0 {
@@ -64,10 +69,20 @@ func (r *Router) Route(states []ServerState) int {
 	case WeightedRoundRobin:
 		return r.routeWeighted(states, candidates)
 	case ShortestQueue:
+		minimum := math.MaxInt
 		selected := candidates[0]
-		for _, index := range candidates[1:] {
-			if states[index].load() < states[selected].load() {
+		ties := 0
+		for _, index := range candidates {
+			load := states[index].load()
+			if load < minimum {
+				minimum = load
 				selected = index
+				ties = 1
+			} else if load == minimum {
+				ties++
+				if r.rng.IntN(ties) == 0 {
+					selected = index
+				}
 			}
 		}
 		return selected

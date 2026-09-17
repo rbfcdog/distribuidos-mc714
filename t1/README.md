@@ -1,14 +1,16 @@
 # MC714 — Trabalho 1: Balanceador de Carga
 
-Simulador de eventos discretos em Go para comparar políticas de balanceamento sob rajadas Bounded Pareto. O executável roda separadamente as rajadas de 30, 60, 90 e 120 requisições, com 10 repetições por política e horizonte de 200 unidades de tempo. Ele também executa um benchmark M/M/1 estacionário separado para validar distribuição geométrica, estabilidade, Lei de Little e o regime instável.
+Simulador de eventos discretos em Go para três servidores homogêneos. Cada servidor possui uma fila FCFS ilimitada e uma única thread. As chegadas seguem Poisson de taxa `lambda` e o serviço é exponencial com `mu = 1`.
+
+O experimento obrigatório executa as políticas `random`, `round_robin` e `shortest_queue` em `lambda = 0.6, 1.2, 1.8, 2.4, 2.7`. Cada configuração tem 10 réplicas, horizonte de 5000 unidades e aquecimento de 500. O caso instável `lambda = 3.3` registra a dinâmica de filas.
 
 ## Requisitos
 
-- Go 1.26.4 ou compatível com o `go.mod`.
-- Para regenerar gráficos: Python 3.14 e [uv](https://docs.astral.sh/uv/).
-- Para recompilar o relatório: uma distribuição LaTeX com `pdflatex` e `IEEEtran`.
+- Go compatível com a versão declarada em `simulator/go.mod`.
+- Python e `uv` para regenerar os gráficos.
+- LaTeX com `pdflatex` e `IEEEtran` para recompilar o relatório.
 
-O simulador não usa dependências externas de Go e funciona em Linux e Windows.
+Não há dependências externas de Go. O código funciona em Linux e Windows.
 
 ## Compilar e testar
 
@@ -17,6 +19,7 @@ Linux:
 ```sh
 cd simulator
 go test ./...
+go vet ./...
 go build -o simulador ./cmd/simulador
 ./simulador
 ```
@@ -26,39 +29,21 @@ Windows PowerShell:
 ```powershell
 cd simulator
 go test ./...
+go vet ./...
 go build -o simulador.exe ./cmd/simulador
 .\simulador.exe
 ```
 
-Também é possível executar sem gerar um binário permanente:
+## Selecionar política e observar filas
 
 ```sh
-go run ./cmd/simulador
+go run ./cmd/simulador -policy shortest_queue
+go run ./cmd/simulador -trace -policy random
 ```
 
-A saída padrão apresenta as médias das 10 repetições, os valores analíticos, o benchmark M/M/1 e os cenários extras. Use `-extras=false` para suprimir extensões opcionais e `-stationary=false` para executar somente a matriz de rajadas.
+`-policy` aceita `all`, `random`, `round_robin` e `shortest_queue`. `-trace` imprime, após cada evento da primeira réplica, instante, número total no sistema, ocupação das três filas e conclusões por servidor. `-seed` troca a semente base preservando réplicas independentes. Para um mesmo `lambda` e índice de réplica, todas as políticas recebem a mesma sequência de chegadas.
 
-## Monitorar a dinâmica dos servidores
-
-A opção `-trace` imprime, após cada evento, o instante, servidor, ocupação, tamanho da fila, conclusões, capacidade e indicação de backup:
-
-```sh
-go run ./cmd/simulador -trace
-```
-
-Para alterar a semente reproduzível:
-
-```sh
-go run ./cmd/simulador -seed 20260831
-```
-
-Políticas de uma mesma combinação de rajada e repetição recebem o mesmo tráfego. Rajadas de tamanhos diferentes e as 10 repetições usam fluxos independentes.
-
-## Cenários extras de arquitetura
-
-Além de servidores heterogêneos e backup, `-extras` executa três arquiteturas de fila com a rajada 120 e três trabalhadores homogêneos de capacidade um: filas privadas com escolha Aleatória, filas privadas com Fila Mais Curta e uma fila FIFO compartilhada de onde trabalhadores ociosos retiram trabalho. Também compara consulta plana com hierarquia de dois pools em quatro trabalhadores. Os resultados ficam em `extras.csv` e a figura comparativa em `architecture_comparison.png`.
-
-## Regenerar dados e gráficos
+## Regenerar dados e figuras
 
 A partir de `simulator/`:
 
@@ -66,48 +51,33 @@ A partir de `simulator/`:
 go run ./cmd/simulador \
   -results-csv ../analysis/data/results.csv \
   -trials-csv ../analysis/data/trials.csv \
-  -trace-csv ../analysis/data/server_trace.csv \
-  -traffic-csv ../analysis/data/traffic.csv \
-  -extras-csv ../analysis/data/extras.csv \
-  -stationary-csv ../analysis/data/stationary.csv
+  -trace-csv ../analysis/data/server_trace.csv
 ```
 
-No Windows PowerShell, execute o mesmo comando em uma linha ou substitua `\` pelo acento grave `` ` `` de continuação.
-
-Depois, a partir de `analysis/`:
+A partir de `analysis/`:
 
 ```sh
 uv sync
 uv run simulation-plots
 ```
 
-Os CSVs ficam em `analysis/data/` e as figuras em `analysis/figures/`. `stationary.csv` contém uma linha por política e carga, com valores analíticos, médias simuladas, termo direito de Little e tamanho final da fila.
+Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. Os gráficos gerados são `response_comparison.png` e `unstable_queues.png`.
 
 ## Recompilar o relatório
 
-Copie `metrics_by_burst.png` e `stationary_validation.png` para `report/figures/` e execute, a partir de `report/`:
+A partir de `report/`:
 
 ```sh
 pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
 pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
 ```
 
-O PDF final deve ter no máximo quatro páginas. O arquivo de entrega gerado neste repositório é `relatorio_projeto1_rodrigo_camargo.pdf`.
-
-## Entregáveis
-
-- `relatorio_projeto1_rodrigo_camargo.pdf`: relatório IEEE final com quatro páginas.
-- `codigo_projeto1_rodrigo_camargo.zip`: código Go, análise em Python, dados reproduzíveis, fonte LaTeX e este guia.
-
-Esses nomes seguem o padrão definido no enunciado. São os dois arquivos que devem ser enviados no Classroom.
+O relatório final é `relatorio_projeto1_rodrigo_camargo.pdf`. O arquivo compactado de entrega é `codigo_projeto1_rodrigo_camargo.zip`.
 
 ## Estrutura
 
-- `simulator/cmd/simulador`: interface de linha de comando e exportação dos resultados.
-- `simulator/internal/engine`: fila de eventos, servidores, filas e métricas.
-- `simulator/internal/balancer`: políticas obrigatórias e adicionais.
-- `simulator/internal/analytics`: modelo analítico de lote finito.
-- `simulator/internal/stationary`: benchmark M/M/1 por réplica e aproximação fluida instável.
-- `simulator/pkg/mathutil`: distribuição Bounded Pareto.
-- `analysis`: dados, geração de gráficos e comparação quantitativa.
+- `simulator/internal/balancer`: as três políticas de encaminhamento.
+- `simulator/internal/stationary`: fila de eventos, servidores FCFS, métricas, modelo M/M/1 e testes.
+- `simulator/cmd/simulador`: configuração por linha de comando e exportação CSV.
+- `analysis`: gráficos da comparação e da instabilidade.
 - `report`: fonte IEEE e figuras do relatório.

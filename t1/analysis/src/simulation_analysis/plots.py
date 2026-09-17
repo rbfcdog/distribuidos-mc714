@@ -1,11 +1,10 @@
-
 from __future__ import annotations
 
 import argparse
+import shutil
 from pathlib import Path
 
 import matplotlib
-import numpy as np
 import pandas as pd
 
 matplotlib.use("Agg")
@@ -13,572 +12,78 @@ import matplotlib.pyplot as plt
 
 RESULT_COLUMNS = {
     "policy",
-    "burst_size",
-    "trials",
-    "mean_throughput",
-    "std_throughput",
-    "analytical_throughput",
-    "mean_response_time",
-    "std_response_time",
-    "analytical_response_time",
-    "no_queue_response_time",
-    "mean_utilization",
-    "std_utilization",
-    "analytical_utilization",
-    "mean_completed",
-    "mean_unfinished",
-    "mean_rejected_full",
-    "mean_backup_activations",
-    "throughput_absolute_error",
-    "response_absolute_error",
-}
-TRIAL_COLUMNS = {
-    "policy",
-    "burst_size",
-    "trial",
-    "throughput",
-    "response_time",
-    "duration",
-    "completed",
-    "assigned_0",
-    "assigned_1",
-    "assigned_2",
-}
-TRACE_COLUMNS = {"policy", "burst_size", "time", "server_id", "active", "queue_length", "completed"}
-TRAFFIC_COLUMNS = {"burst_size", "index", "interarrival"}
-EXTRA_COLUMNS = {
-    "scenario",
-    "policy",
-    "servers",
-    "mean_throughput",
-    "mean_response_time",
-    "mean_utilization",
-    "mean_rejected_full",
-    "mean_backup_activations",
-}
-STATIONARY_COLUMNS = {
-    "policy",
     "lambda",
-    "mu",
-    "servers",
     "stable",
-    "rho",
-    "p0",
-    "analytical_jobs_per_server",
-    "analytical_queue_wait",
     "analytical_response",
-    "analytical_throughput",
-    "analytical_utilization",
-    "fluid_backlog_rate",
-    "mean_throughput",
-    "mean_utilization",
-    "mean_jobs",
     "mean_response",
+    "ci95_response",
+    "mean_throughput",
+    "ci95_throughput",
+    "mean_jobs",
     "little_right",
     "little_absolute_error",
-    "mean_final_jobs",
 }
-POLICY_LABELS = {
-    "random": "Random",
-    "round_robin": "Round robin",
-    "shortest_queue": "Shortest queue",
-}
+TRACE_COLUMNS = {"policy", "lambda", "time", "jobs"}
+POLICIES = ("random", "round_robin", "shortest_queue")
+LABELS = {"random": "Aleatória", "round_robin": "Round Robin", "shortest_queue": "Fila Mais Curta"}
 COLORS = {"random": "#b54747", "round_robin": "#2878b5", "shortest_queue": "#2b9348"}
-PARETO_L = 0.0004
-PARETO_H = 0.04
-PARETO_ALPHA = 1.4
-SERVER_CAPACITY = 15
-SERVICE_TIME = 0.05
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser()
     parser.add_argument("--results", type=Path, default=Path("data/results.csv"))
-    parser.add_argument("--trials", type=Path, default=Path("data/trials.csv"))
     parser.add_argument("--trace", type=Path, default=Path("data/server_trace.csv"))
-    parser.add_argument("--traffic", type=Path, default=Path("data/traffic.csv"))
-    parser.add_argument("--extras", type=Path, default=Path("data/extras.csv"))
     parser.add_argument("--output", type=Path, default=Path("figures"))
-    parser.add_argument("--stationary", type=Path, default=Path("data/stationary.csv"))
+    parser.add_argument("--report-output", type=Path, default=Path("../report/figures"))
     args = parser.parse_args()
-
     results = read_csv(args.results, RESULT_COLUMNS)
-    trials = read_csv(args.trials, TRIAL_COLUMNS)
     trace = read_csv(args.trace, TRACE_COLUMNS)
-    traffic = read_csv(args.traffic, TRAFFIC_COLUMNS)
-    extras = read_csv(args.extras, EXTRA_COLUMNS)
-    stationary = read_csv(args.stationary, STATIONARY_COLUMNS)
+    args.output.mkdir(parents=True, exist_ok=True)
+    plot_response(results, args.output / "response_comparison.png")
+    plot_unstable(trace, args.output / "unstable_queues.png")
+    args.report_output.mkdir(parents=True, exist_ok=True)
+    for figure in args.output.glob("*.png"):
+        shutil.copy2(figure, args.report_output / figure.name)
 
-    plot_traffic(traffic, args.output / "traffic_bounded_pareto.png")
-    plot_metrics(results, args.output / "metrics_by_burst.png")
-    plot_model_comparison(results, args.output / "model_comparison.png")
-    plot_fairness(trials, args.output / "fairness_vs_equal_share.png")
-    plot_occupancy(trace, args.output / "occupancy_and_queues.png")
-    plot_server_distribution(trace, args.output / "server_distribution_burst_120.png")
-    plot_queue_dynamics(trace, args.output / "queue_dynamics_burst_120.png")
-    plot_relative_performance(results, args.output / "relative_policy_performance.png")
-    plot_model_error(results, args.output / "model_comparison_error.png")
-    plot_extras(extras, args.output / "extras_comparison.png")
-    plot_architecture(extras, args.output / "architecture_comparison.png")
 
-    plot_stationary(stationary, args.output / "stationary_validation.png")
-
-def read_csv(path: Path, required_columns: set[str]) -> pd.DataFrame:
+def read_csv(path: Path, required: set[str]) -> pd.DataFrame:
     if not path.is_file():
-        raise FileNotFoundError(f"missing simulator export: {path}")
+        raise FileNotFoundError(path)
     frame = pd.read_csv(path)
-    missing = required_columns.difference(frame.columns)
+    missing = required.difference(frame.columns)
     if missing:
-        raise ValueError(f"{path} is missing columns: {', '.join(sorted(missing))}")
+        raise ValueError(f"{path} missing columns: {sorted(missing)}")
     return frame
 
 
-def plot_stationary(stationary: pd.DataFrame, output: Path) -> None:
-    stable = stationary.loc[stationary["stable"]].copy()
-    unstable = stationary.loc[~stationary["stable"]].copy()
-    if stable.empty or unstable.empty:
-        raise ValueError("stationary data must include stable and unstable rows")
-
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.4), constrained_layout=True)
-    for policy, group in stable.groupby("policy", sort=False):
-        ordered = group.sort_values("lambda")
-        axes[0].plot(
-            ordered["lambda"],
-            ordered["mean_response"],
-            marker="o",
-            linewidth=1.8,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-    random_model = stable.loc[stable["policy"] == "random"].sort_values("lambda")
-    axes[0].plot(
-        random_model["lambda"],
-        random_model["analytical_response"],
-        linestyle="--",
-        color="#292929",
-        linewidth=1.5,
-        label=r"Random M/M/1 $1/(1-\lambda/3)$",
-    )
-    axes[0].set_ylabel("Mean response time")
-    axes[0].set_title("Stationary M/M/1 response")
-    axes[0].grid(alpha=0.25)
-    axes[0].legend(fontsize=6)
-
-    positions = np.arange(len(unstable))
-    bars = axes[1].bar(
-        positions,
-        unstable["mean_final_jobs"],
-        color=[COLORS[policy] for policy in unstable["policy"]],
-        label=r"Simulated $N(200)$",
-    )
-    fluid = float((unstable["fluid_backlog_rate"] * unstable["horizon"]).iloc[0])
-    axes[1].axhline(fluid, color="#292929", linestyle="--", linewidth=1.4, label=r"Fluid $0.3T$")
-    axes[1].bar_label(bars, fmt="%.1f", padding=2, fontsize=7)
-    axes[1].set_xticks(positions, [POLICY_LABELS[policy] for policy in unstable["policy"]])
-    axes[1].set_ylabel("Jobs at horizon")
-    axes[1].set_title(r"Unstable $\lambda=3.3$")
-    axes[1].grid(axis="y", alpha=0.25)
-    axes[1].legend(fontsize=7)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def bounded_pareto_pdf(x: np.ndarray) -> np.ndarray:
-    term = 1.0 - (PARETO_L / PARETO_H) ** PARETO_ALPHA
-    density = PARETO_ALPHA * (PARETO_L**PARETO_ALPHA) * x ** (-(PARETO_ALPHA + 1)) / term
-    return np.where((x >= PARETO_L) & (x <= PARETO_H), density, 0.0)
-
-
-def plot_traffic(traffic: pd.DataFrame, output: Path) -> None:
-    samples = traffic.loc[traffic["burst_size"] == 120, "interarrival"].to_numpy()
-    if samples.size == 0:
-        samples = traffic["interarrival"].to_numpy()
-    grid = np.linspace(PARETO_L, PARETO_H, 400)
-
-    figure, axis = plt.subplots(figsize=(4.35, 2.9), constrained_layout=True)
-    axis.hist(samples, bins=24, density=True, color="#6b6b6b", alpha=0.45, label="Simulated arrivals")
-    axis.plot(grid, bounded_pareto_pdf(grid), color="#1d3557", linewidth=2, label=r"Bounded Pareto PDF ($\alpha=1.4$)")
-    axis.set_xlim(0, 0.012)
-    axis.set_xlabel("Inter-arrival time")
-    axis.set_ylabel("Density")
-    axis.set_title("Bounded Pareto traffic (H=0.8)")
-    axis.grid(alpha=0.25)
+def plot_response(results: pd.DataFrame, output: Path) -> None:
+    stable = results.loc[results["stable"]].copy()
+    random_rows = stable.loc[stable["policy"] == "random"].sort_values("lambda")
+    figure, axis = plt.subplots(figsize=(4.35, 3.1), constrained_layout=True)
+    axis.plot(random_rows["lambda"], random_rows["analytical_response"], color="#222222", linewidth=1.6, label="M/M/1 analítico")
+    for policy in POLICIES:
+        rows = stable.loc[stable["policy"] == policy].sort_values("lambda")
+        axis.errorbar(rows["lambda"], rows["mean_response"], yerr=rows["ci95_response"], marker="o", capsize=3, linewidth=1.2, color=COLORS[policy], label=LABELS[policy])
+    axis.set_xlabel("Taxa de chegada λ")
+    axis.set_ylabel("Tempo médio de resposta E[R]")
+    axis.set_xticks(sorted(stable["lambda"].unique()))
+    axis.grid(axis="y", alpha=0.25)
     axis.legend(fontsize=7)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 
 
-def plot_metrics(results: pd.DataFrame, output: Path) -> None:
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.2), constrained_layout=True)
-    for policy, group in results.groupby("policy", sort=False):
-        ordered = group.sort_values("burst_size")
-        axes[0].errorbar(
-            ordered["burst_size"],
-            ordered["mean_throughput"],
-            yerr=ordered["std_throughput"],
-            marker="o",
-            linewidth=2,
-            capsize=3,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-        axes[1].errorbar(
-            ordered["burst_size"],
-            ordered["mean_response_time"],
-            yerr=ordered["std_response_time"],
-            marker="o",
-            linewidth=2,
-            capsize=3,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-    model = results.sort_values("burst_size").drop_duplicates("burst_size")
-    axes[0].plot(
-        model["burst_size"],
-        model["analytical_throughput"],
-        linestyle="--",
-        linewidth=1.8,
-        color="#292929",
-        label="Finite-batch model",
-    )
-    axes[1].plot(
-        model["burst_size"],
-        model["analytical_response_time"],
-        linestyle="--",
-        linewidth=1.8,
-        color="#292929",
-        label="Instantaneous-batch model",
-    )
-    axes[1].axhline(SERVICE_TIME, linestyle=":", linewidth=1.5, color="#6b6b6b", label="No-queue lower bound")
-    axes[0].set_ylabel("Throughput (req / time)")
-    axes[1].set_ylabel("Mean response time")
-    axes[1].set_xlabel("Burst size (requests)")
-    axes[0].set_title("Throughput, 10-run mean ± s")
-    axes[1].set_title("Response time, 10-run mean ± s")
-    for axis in axes:
-        axis.grid(alpha=0.25)
-        axis.legend(fontsize=7)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_model_comparison(results: pd.DataFrame, output: Path) -> None:
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.1), constrained_layout=True)
-    selected = results.loc[results["policy"] == "random"].sort_values("burst_size")
-    bursts = selected["burst_size"].to_numpy()
-    width = 10
-    axes[0].bar(bursts - width / 2, selected["mean_throughput"], width=width, color="#2878b5", label="Simulation")
-    axes[0].bar(bursts + width / 2, selected["analytical_throughput"], width=width, color="#2b9348", label="Finite-batch model")
-    axes[1].bar(bursts - width, selected["mean_response_time"], width=width, color="#2878b5", label="Simulation")
-    axes[1].bar(bursts, selected["no_queue_response_time"], width=width, color="#6b6b6b", label="No-queue lower bound")
-    axes[1].bar(bursts + width, selected["analytical_response_time"], width=width, color="#2b9348", label="Instantaneous-batch model")
-    axes[0].set_title("Fixed-horizon throughput")
-    axes[1].set_title("Transient response-time comparison")
-    axes[0].set_ylabel("Throughput (req / time)")
-    axes[1].set_ylabel("Response time")
-    axes[1].set_xlabel("Burst size (requests)")
-    for axis in axes:
-        axis.set_xticks(bursts)
-        axis.grid(axis="y", alpha=0.25)
-        axis.legend(fontsize=7)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_extras(extras: pd.DataFrame, output: Path) -> None:
-    heterogeneous = extras.loc[extras["scenario"].str.startswith("heterogeneous_")].copy()
-    buffers = extras.loc[extras["scenario"].str.startswith("bounded_buffers")].copy()
-    if heterogeneous.empty or buffers.empty:
-        raise ValueError("extras data must contain heterogeneous and bounded-buffer scenarios")
-
-    heterogeneous_labels = {
-        "heterogeneous_round_robin": "Round robin",
-        "heterogeneous_weighted_round_robin": "Weighted RR",
-        "heterogeneous_least_work": "Least work",
-        "heterogeneous_power_of_two": "Power of two",
-    }
-    heterogeneous["label"] = heterogeneous["scenario"].map(heterogeneous_labels)
-    heterogeneous = heterogeneous.dropna(subset=["label"])
-    buffers["label"] = buffers["scenario"].map(
-        {
-            "bounded_buffers": "No backup",
-            "bounded_buffers_with_backup": "With backup",
-        }
-    )
-
-    figure, axes = plt.subplots(1, 2, figsize=(8.2, 3.15), constrained_layout=True)
-    axes[0].bar(
-        heterogeneous["label"],
-        heterogeneous["mean_response_time"],
-        color=["#6b6b6b", "#2878b5", "#2b9348", "#7b2cbf"],
-    )
-    axes[0].set_ylabel("Mean response time")
-    axes[0].set_title("Heterogeneous servers, burst 120")
-    axes[0].tick_params(axis="x", rotation=22)
-    axes[0].set_ylim(0.04, max(heterogeneous["mean_response_time"]) * 1.08)
-
-    positions = np.arange(len(buffers))
-    width = 0.34
-    axes[1].bar(
-        positions - width / 2,
-        buffers["mean_rejected_full"],
-        width=width,
-        color="#b54747",
-        label="Rejected",
-    )
-    axes[1].bar(
-        positions + width / 2,
-        buffers["mean_backup_activations"],
-        width=width,
-        color="#2b9348",
-        label="Backup activations",
-    )
-    axes[1].set_xticks(positions, buffers["label"])
-    axes[1].set_ylabel("Requests per trial")
-    axes[1].set_title("Finite buffers, burst 120")
-    axes[1].legend(fontsize=8)
-    for axis in axes:
-        axis.grid(axis="y", alpha=0.25)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-def plot_architecture(extras: pd.DataFrame, output: Path) -> None:
-    queues = extras.loc[extras["scenario"].str.startswith("architecture_")].copy()
-    pools = extras.loc[extras["scenario"].str.startswith("multi_pool_")].copy()
-    queue_labels = {
-        "architecture_private_random": "Private\nrandom",
-        "architecture_private_shortest_queue": "Private\nshortest",
-        "architecture_shared_queue": "Shared\nqueue",
-    }
-    pool_labels = {
-        "multi_pool_flat_least_work": "Flat\nleast work",
-        "multi_pool_hierarchical": "Two-level\nhierarchy",
-    }
-    queues["label"] = queues["scenario"].map(queue_labels)
-    pools["label"] = pools["scenario"].map(pool_labels)
-    queues = queues.dropna(subset=["label"])
-    pools = pools.dropna(subset=["label"])
-    if len(queues) != len(queue_labels) or len(pools) != len(pool_labels):
-        raise ValueError("extras data must contain shared-queue and multi-pool architecture scenarios")
-
-    figure, axes = plt.subplots(1, 2, figsize=(8.2, 3.0), constrained_layout=True)
-    shared_bars = axes[0].bar(
-        queues["label"],
-        queues["mean_response_time"],
-        color=["#b54747", "#2878b5", "#2b9348"],
-    )
-    axes[0].bar_label(shared_bars, fmt="%.3f", padding=3, fontsize=8)
-    axes[0].set_ylabel("Mean response time")
-    axes[0].set_title("Three-worker queue architecture")
-
-    pool_bars = axes[1].bar(
-        pools["label"],
-        pools["mean_response_time"],
-        color=["#2878b5", "#e07a5f"],
-    )
-    axes[1].bar_label(pool_bars, fmt="%.5f", padding=3, fontsize=8)
-    axes[1].set_ylabel("Mean response time")
-    axes[1].set_title("Four-worker pool architecture")
-    for axis in axes:
-        axis.grid(axis="y", alpha=0.25)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_fairness(trials: pd.DataFrame, output: Path) -> None:
-    shares = trials.copy()
-    total = shares["assigned_0"] + shares["assigned_1"] + shares["assigned_2"]
-    for server in range(3):
-        shares[f"share_{server}"] = shares[f"assigned_{server}"] / total
-    means = shares.groupby(["policy", "burst_size"], as_index=False)[["share_0", "share_1", "share_2"]].mean()
-
-    figure, axes = plt.subplots(3, 1, figsize=(4.35, 4.4), sharex=True, constrained_layout=True)
-    for axis, policy in zip(axes, POLICY_LABELS):
-        group = means.loc[means["policy"] == policy].sort_values("burst_size")
-        for server, color in enumerate(("#1d3557", "#457b9d", "#a8dadc")):
-            axis.plot(
-                group["burst_size"],
-                100 * group[f"share_{server}"],
-                marker="o",
-                linewidth=1.8,
-                color=color,
-                label=f"Server {server + 1}",
-            )
-        axis.axhline(100 / 3, linestyle="--", color="#292929", linewidth=1.2, label="Fair 1/3")
-        axis.set_ylabel("Share (%)")
-        axis.set_title(POLICY_LABELS[policy])
-        axis.set_ylim(20, 50)
-        axis.grid(alpha=0.25)
-        axis.legend(fontsize=6, loc="upper right")
-    axes[-1].set_xlabel("Burst size (requests)")
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_occupancy(trace: pd.DataFrame, output: Path) -> None:
-    selected = trace.loc[trace["burst_size"] == 120].copy()
-    if selected.empty:
-        raise ValueError("trace contains no burst-size 120 scenario")
-    totals = (
-        selected.groupby(["policy", "time"], as_index=False)[["active", "queue_length"]]
-        .sum()
-        .sort_values(["policy", "time"])
-    )
-
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 5.0), sharex=True, constrained_layout=True)
-    for policy, group in totals.groupby("policy", sort=False):
-        label = POLICY_LABELS[policy]
-        axes[0].step(group["time"], group["active"], where="post", color=COLORS[policy], label=label)
-        axes[1].step(group["time"], group["queue_length"], where="post", color=COLORS[policy], label=label)
-    axes[0].axhline(3 * SERVER_CAPACITY, linestyle="--", color="#292929", linewidth=1.2, label="Capacity 3×15")
-    axes[0].set_ylabel("Active requests")
-    axes[0].set_title("Monitored occupancy, burst 120")
-    axes[1].set_ylabel("Queued requests")
-    axes[1].set_xlabel("Simulation time")
-    axes[1].set_title("Monitored queue length, burst 120")
-    for axis in axes:
-        axis.grid(alpha=0.25)
-        axis.legend(fontsize=7)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_model_error(results: pd.DataFrame, output: Path) -> None:
-    figure, axes = plt.subplots(1, 2, figsize=(11, 4.25), constrained_layout=True)
-    for policy, group in results.groupby("policy", sort=False):
-        ordered = group.sort_values("burst_size")
-        for axis, sim, theory, label in (
-            (axes[0], "mean_throughput", "analytical_throughput", "Absolute throughput error"),
-            (axes[1], "mean_response_time", "analytical_response_time", "Gap to instantaneous-batch model"),
-        ):
-            axis.plot(
-                ordered["burst_size"],
-                (ordered[sim] - ordered[theory]).abs(),
-                marker="o",
-                linewidth=2,
-                color=COLORS[policy],
-                label=POLICY_LABELS[policy],
-            )
-            axis.set_xlabel("Burst size (requests)")
-            axis.set_ylabel(label)
-            axis.grid(alpha=0.25)
-            axis.legend(fontsize=8)
-    axes[0].set_title("Simulation-model throughput gap")
-    axes[1].set_title("Simulation-transient-model gap")
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_queue_dynamics(trace: pd.DataFrame, output: Path) -> None:
-    selected = trace.loc[trace["burst_size"] == 120]
-    if selected.empty:
-        raise ValueError("trace contains no burst-size 120 scenario")
-    totals = (
-        selected.groupby(["policy", "time"], as_index=False)[["active", "queue_length"]]
-        .sum()
-        .sort_values(["policy", "time"])
-    )
-
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.6), sharex=True, constrained_layout=True)
-    for policy, group in totals.groupby("policy", sort=False):
-        label = POLICY_LABELS[policy]
-        axes[0].step(group["time"], group["active"], where="post", color=COLORS[policy], label=label)
-        axes[1].step(group["time"], group["queue_length"], where="post", color=COLORS[policy], label=label)
-    axes[0].set_title("Aggregate server state during a representative 120-request burst")
-    axes[0].set_ylabel("Active requests")
-    axes[1].set_ylabel("Queued requests")
-    axes[1].set_xlabel("Simulation time")
-    for axis in axes:
-        axis.grid(alpha=0.25)
-        axis.legend(fontsize=8)
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_server_distribution(trace: pd.DataFrame, output: Path) -> None:
-    selected = trace.loc[trace["burst_size"] == 120].sort_values("time")
-    if selected.empty:
-        raise ValueError("trace contains no burst-size 120 scenario")
-    completed = selected.groupby(["policy", "server_id"], as_index=False).tail(1)
-    max_queues = (
-        selected.groupby(["policy", "server_id"], as_index=False)["queue_length"]
-        .max()
-        .sort_values(["policy", "server_id"])
-    )
-
-    figure, axes = plt.subplots(2, 1, figsize=(4.35, 4.6), constrained_layout=True)
-    server_ids = sorted(selected["server_id"].unique())
-    policies = list(POLICY_LABELS)
-    width = 0.23
-    for index, policy in enumerate(policies):
-        offset = (index - 1) * width
-        server_completed = completed.loc[completed["policy"] == policy].sort_values("server_id")
-        server_queues = max_queues.loc[max_queues["policy"] == policy].sort_values("server_id")
-        axes[0].bar(
-            [server + offset for server in server_ids],
-            server_completed["completed"],
-            width=width,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-        axes[1].bar(
-            [server + offset for server in server_ids],
-            server_queues["queue_length"],
-            width=width,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-    for axis in axes:
-        axis.set_xticks(server_ids, [f"Server {server + 1}" for server in server_ids])
-        axis.grid(axis="y", alpha=0.25)
-        axis.legend(fontsize=8)
-    axes[0].set_title("Completed requests per server")
-    axes[0].set_ylabel("Requests")
-    axes[1].set_title("Maximum queue length per server")
-    axes[1].set_ylabel("Queued requests")
-    figure.savefig(output, dpi=220)
-    plt.close(figure)
-
-
-def plot_relative_performance(results: pd.DataFrame, output: Path) -> None:
-    baseline = results.loc[results["policy"] == "random", ["burst_size", "mean_throughput", "mean_response_time"]]
-    baseline = baseline.rename(
-        columns={
-            "mean_throughput": "random_throughput",
-            "mean_response_time": "random_response_time",
-        }
-    )
-    comparison = results.merge(baseline, on="burst_size", validate="many_to_one")
-    comparison["throughput_gain"] = 100 * (comparison["mean_throughput"] / comparison["random_throughput"] - 1)
-    comparison["response_reduction"] = 100 * (1 - comparison["mean_response_time"] / comparison["random_response_time"])
-
-    figure, axes = plt.subplots(1, 2, figsize=(10.5, 4.2), constrained_layout=True)
-    for policy, group in comparison.groupby("policy", sort=False):
-        ordered = group.sort_values("burst_size")
-        axes[0].plot(
-            ordered["burst_size"],
-            ordered["throughput_gain"],
-            marker="o",
-            linewidth=2,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-        axes[1].plot(
-            ordered["burst_size"],
-            ordered["response_reduction"],
-            marker="o",
-            linewidth=2,
-            color=COLORS[policy],
-            label=POLICY_LABELS[policy],
-        )
-    for axis in axes:
-        axis.axhline(0, color="#292929", linewidth=1)
-        axis.set_xlabel("Burst size (requests)")
-        axis.set_ylabel("Percent relative to random routing")
-        axis.grid(alpha=0.25)
-        axis.legend(fontsize=8)
-    axes[0].set_title("Throughput gain")
-    axes[1].set_title("Response-time reduction")
+def plot_unstable(trace: pd.DataFrame, output: Path) -> None:
+    rows = trace.loc[trace["lambda"] == 3.3]
+    figure, axis = plt.subplots(figsize=(4.35, 2.5), constrained_layout=True)
+    for policy in POLICIES:
+        policy_rows = rows.loc[rows["policy"] == policy]
+        axis.plot(policy_rows["time"], policy_rows["jobs"], linewidth=1.0, color=COLORS[policy], label=LABELS[policy])
+    axis.plot([0, 5000], [0, 1500], color="#222222", linestyle="--", linewidth=1.2, label="0,3t")
+    axis.set_xlabel("Tempo")
+    axis.set_ylabel("Requisições no sistema N(t)")
+    axis.grid(alpha=0.25)
+    axis.legend(fontsize=7)
     figure.savefig(output, dpi=220)
     plt.close(figure)
 
