@@ -74,7 +74,7 @@ pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
 pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
 ```
 
-O relatório final é `relatorio_projeto1_rodrigo_camargo.pdf`. O arquivo compactado de entrega é `codigo_projeto1_rodrigo_camargo.zip`.
+O PDF gerado fica em `relatorio_projeto1.pdf`. O arquivo compactado de entrega é `codigo_projeto1_rodrigo_camargo.zip`.
 
 ## Estrutura
 
