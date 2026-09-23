@@ -8,7 +8,6 @@ O experimento obrigatório executa as políticas `random`, `round_robin` e `shor
 
 - Go compatível com a versão declarada em `simulator/go.mod`.
 - Python e `uv` para regenerar os gráficos.
-- LaTeX com `pdflatex` e `IEEEtran` para recompilar o relatório.
 
 Não há dependências externas de Go. O código funciona em Linux e Windows.
 
@@ -65,16 +64,9 @@ uv run simulation-plots
 
 Os arquivos `results.csv`, `trials.csv` e `server_trace.csv` preservam, respectivamente, médias e intervalos de confiança de 95%, as dez réplicas e a trajetória de filas. O arquivo opcional `heterogeneous.csv` compara Round Robin uniforme e `weighted_round_robin` para $\mu=(1{,}5,1{,}0,0{,}5)$ e $\lambda=2{,}4$. `bounded_pareto_architectures.csv` é uma extensão separada, com chegadas Bounded Pareto e cinco arquiteturas: filas privadas, fila compartilhada, buffers limitados, backup de overflow e pools hierárquicos. Seus números não são misturados aos resultados Poisson. Os gráficos gerados são `response_comparison.png`, `jobs_comparison.png`, `unstable_queues.png` e `bounded_pareto_architectures.png`.
 
-## Recompilar o relatório
+## Entrega
 
-A partir de `report/`:
-
-```sh
-pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
-pdflatex -interaction=nonstopmode -halt-on-error relatorio_projeto1.tex
-```
-
-O PDF gerado fica em `relatorio_projeto1.pdf`. O arquivo compactado de entrega é `codigo_projeto1_rodrigo_camargo.zip`.
+O arquivo compactado de entrega é `codigo_projeto1_rodrigo_camargo.zip`.
 
 ## Estrutura
 
@@ -84,4 +76,4 @@ O PDF gerado fica em `relatorio_projeto1.pdf`. O arquivo compactado de entrega �
 - `simulator/internal/analytics`, `simulator/internal/domain` e `simulator/pkg/mathutil`: suporte isolado à extensão não-Poisson.
 - `simulator/cmd/simulador`: configuração por linha de comando e exportação CSV.
 - `analysis`: gráficos da comparação e da instabilidade.
-- `report`: fonte IEEE e figuras do relatório.
+- `report/figures`: figuras geradas pela análise.
