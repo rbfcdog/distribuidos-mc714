@@ -1,6 +1,6 @@
 # MC714 — Trabalho 2
 
-Projeto Go independente para Ricart–Agrawala e replicação por quórum ABD. O planejamento local fica em `docs/PLANO.md`; `docs/` não é versionado.
+Projeto Go independente para Ricart–Agrawala e replicação por quórum ABD.
 
 ## Estado atual
 
@@ -355,12 +355,6 @@ Requer GNU Make 4.3 ou mais recente, `uv`, `latexmk`, `pdflatex`, a classe `IEEE
 
 Pendências de entrega estão explícitas na primeira página: confirmar os nomes/RAs reaproveitados do T1 e informar o endereço do GitLab da disciplina e o link do vídeo. O GitHub disponível é identificado como tal, sem fingir que é o GitLab exigido. Não foi inventada divisão individual de trabalho do T2.
 
-## Vídeo de demonstração
-
-O [roteiro de gravação](report/roteiro_video.md) organiza cerca de cinco minutos com falas dos dois integrantes, comandos e indicações do que mostrar. A demonstração usa três incrementos concorrentes no contador integrado, consulta o observador, mata o nó 3 e compara o bloqueio do incremento com a leitura ABD ainda disponível. Os gráficos apresentados depois são da campanha arquivada.
-
-A sequência foi ensaiada em contêineres reais. Os incrementos retornaram valores distintos de 1 a 3, a leitura final retornou 3 e o observador contou três entradas e três saídas, sem violações. Após SIGKILL no nó 3, o novo incremento recebeu HTTP 504 com `not_applied`, sem nova entrada, e a leitura ABD continuou retornando 3. Contêineres, rede e volumes desse ensaio foram removidos. A gravação e a publicação do vídeo ainda estão pendentes.
-
 ## Verificação executada
 
 - Build de `node`, `lab` e `load`, `go test -race ./...` e `go vet ./...`.
@@ -373,7 +367,6 @@ A sequência foi ensaiada em contêineres reais. Os incrementos retornaram valor
 - Inicialização rejeitada para nó desconhecido, execução inválida e configuração ausente; `GET /cluster` inspecionado e POST rejeitado.
 - Smoke executável dos contratos RA/ABD: mensagem válida aceita e mensagem de outra execução rejeitada.
 - Regressão de registro incompleto reproduzida antes da correção e aprovada depois; demais limites e invariantes de configuração/mensagens cobertos pelos testes.
-- `docs/PLANO.md` movido para o diretório local ignorado; regra verificada com `git check-ignore`.
 - `experiments/ra_smoke.py`: 31 seções críticas concluídas em três nós, 124 mensagens lógicas, 31 entradas/saídas e zero sobreposições ou eventos inválidos no observador.
 - Após matar um participante nesse smoke, os sobreviventes retornam 504 sem novas entradas; os pedidos terminam em `RELEASED`, sem respostas adiadas retidas.
 - Testes HTTP cobrem cancelamento antes da entrada, entrega de resposta adiada após falha transitória, concorrência e desconexão do cliente durante `HELD`.
