@@ -1,0 +1,931 @@
+[
+    {
+        "Id": "57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3",
+        "Created": "2026-10-21T15:46:20.831246985Z",
+        "Path": "/node",
+        "Args": [
+            "-id",
+            "node1",
+            "-run-id",
+            "c0f4be22daed04bba8f6baba8bd9630a4",
+            "-config",
+            "/etc/mc714/cluster.json",
+            "-listen",
+            ":8080",
+            "-observer",
+            "",
+            "-data-dir",
+            "/data"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 937134,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-21T15:46:21.102936312Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+        "ResolvConfPath": "/var/lib/docker/containers/57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3/hostname",
+        "HostsPath": "/var/lib/docker/containers/57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3/hosts",
+        "LogPath": "/var/lib/docker/containers/57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3/57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3-json.log",
+        "Name": "/mc714-9aca9e2bfb9745548689-node1-1",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json:/etc/mc714/cluster.json:ro",
+                "mc714-9aca9e2bfb9745548689_node1-data:/data:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "mc714-9aca9e2bfb9745548689_client",
+            "PortBindings": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18081"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": true,
+            "SecurityOpt": [
+                "no-new-privileges:true"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 268435456,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 536870912,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 64,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle",
+                "/sys/devices/system/cpu/cpu8/thermal_throttle",
+                "/sys/devices/system/cpu/cpu9/thermal_throttle",
+                "/sys/devices/system/cpu/cpu10/thermal_throttle",
+                "/sys/devices/system/cpu/cpu11/thermal_throttle",
+                "/sys/devices/system/cpu/cpu12/thermal_throttle",
+                "/sys/devices/system/cpu/cpu13/thermal_throttle",
+                "/sys/devices/system/cpu/cpu14/thermal_throttle",
+                "/sys/devices/system/cpu/cpu15/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "57b59b87733046cd0f80fc3d8b83efdcaea526428369ff520abeda50efea95d3",
+                "LowerDir": "/var/lib/docker/overlay2/c1d7058ca8ca81de0cc14c702b12daa16f4750676638f29b7e8aec9f7c6a372b-init/diff:/var/lib/docker/overlay2/resxenbov3n04vgk58lbakvru/diff:/var/lib/docker/overlay2/re1pqijdbac4a9h58ynxa96ih/diff:/var/lib/docker/overlay2/tl7mu2sfvsnm616fz27uyq8h1/diff:/var/lib/docker/overlay2/lmnylzta0mclep51pf8tev3io/diff",
+                "MergedDir": "/var/lib/docker/overlay2/c1d7058ca8ca81de0cc14c702b12daa16f4750676638f29b7e8aec9f7c6a372b/merged",
+                "UpperDir": "/var/lib/docker/overlay2/c1d7058ca8ca81de0cc14c702b12daa16f4750676638f29b7e8aec9f7c6a372b/diff",
+                "WorkDir": "/var/lib/docker/overlay2/c1d7058ca8ca81de0cc14c702b12daa16f4750676638f29b7e8aec9f7c6a372b/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "mc714-9aca9e2bfb9745548689_node1-data",
+                "Source": "/var/lib/docker/volumes/mc714-9aca9e2bfb9745548689_node1-data/_data",
+                "Destination": "/data",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json",
+                "Destination": "/etc/mc714/cluster.json",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "57b59b877330",
+            "Domainname": "",
+            "User": "65532:65532",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "-id",
+                "node1",
+                "-run-id",
+                "c0f4be22daed04bba8f6baba8bd9630a4",
+                "-config",
+                "/etc/mc714/cluster.json",
+                "-listen",
+                ":8080",
+                "-observer",
+                "",
+                "-data-dir",
+                "/data"
+            ],
+            "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+            "Volumes": null,
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/node"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "3e1d2059878d83a406b7a75500ef6f7eaf0256c126a685f46d57a7d2d95ff6cf",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "mc714-9aca9e2bfb9745548689",
+                "com.docker.compose.project.config_files": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/compose.json",
+                "com.docker.compose.project.working_dir": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash",
+                "com.docker.compose.service": "node1",
+                "com.docker.compose.version": "5.6.0"
+            },
+            "StopTimeout": 8
+        },
+        "NetworkSettings": {
+            "SandboxID": "6f6e0f959bd30e622266693a6a73740dccdd15c3df6f8b1e90675862ae4bc91a",
+            "SandboxKey": "/var/run/docker/netns/6f6e0f959bd3",
+            "Ports": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18081"
+                    }
+                ]
+            },
+            "Networks": {
+                "mc714-9aca9e2bfb9745548689_client": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node1-1",
+                        "node1"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "c720d11ac3995b6f5b10a98855d31f120de1eb71b2445df25dc3293a6ff77cdc",
+                    "EndpointID": "363dcb91ac09b005695a233ab6d28bb3c46d7d720190db8e72dcd553759e7a23",
+                    "Gateway": "192.168.192.1",
+                    "IPAddress": "192.168.192.4",
+                    "MacAddress": "a6:1b:6c:b8:d8:4e",
+                    "IPPrefixLen": 20,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node1-1",
+                        "node1",
+                        "57b59b877330"
+                    ]
+                },
+                "mc714-9aca9e2bfb9745548689_protocol": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node1-1",
+                        "node1",
+                        "peer-node1"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "5de58077b791fe6a30351977778cc37b16883da956b1cd81e14d0adf6c0617da",
+                    "EndpointID": "d7d86eed3f2ab8b545f8931dc0f044a3ca0b63ee10f9a4f4098013ffdd08f3d1",
+                    "Gateway": "",
+                    "IPAddress": "192.168.208.4",
+                    "MacAddress": "5e:8c:20:f6:d7:80",
+                    "IPPrefixLen": 20,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node1-1",
+                        "node1",
+                        "peer-node1",
+                        "57b59b877330"
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "Id": "d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab",
+        "Created": "2026-10-21T15:46:20.83019807Z",
+        "Path": "/node",
+        "Args": [
+            "-id",
+            "node2",
+            "-run-id",
+            "c0f4be22daed04bba8f6baba8bd9630a4",
+            "-config",
+            "/etc/mc714/cluster.json",
+            "-listen",
+            ":8080",
+            "-observer",
+            "",
+            "-data-dir",
+            "/data"
+        ],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 936949,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-21T15:46:20.856967483Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+        "ResolvConfPath": "/var/lib/docker/containers/d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab/hostname",
+        "HostsPath": "/var/lib/docker/containers/d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab/hosts",
+        "LogPath": "/var/lib/docker/containers/d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab/d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab-json.log",
+        "Name": "/mc714-9aca9e2bfb9745548689-node2-1",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json:/etc/mc714/cluster.json:ro",
+                "mc714-9aca9e2bfb9745548689_node2-data:/data:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "mc714-9aca9e2bfb9745548689_client",
+            "PortBindings": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18082"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": true,
+            "SecurityOpt": [
+                "no-new-privileges:true"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 268435456,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 536870912,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 64,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle",
+                "/sys/devices/system/cpu/cpu8/thermal_throttle",
+                "/sys/devices/system/cpu/cpu9/thermal_throttle",
+                "/sys/devices/system/cpu/cpu10/thermal_throttle",
+                "/sys/devices/system/cpu/cpu11/thermal_throttle",
+                "/sys/devices/system/cpu/cpu12/thermal_throttle",
+                "/sys/devices/system/cpu/cpu13/thermal_throttle",
+                "/sys/devices/system/cpu/cpu14/thermal_throttle",
+                "/sys/devices/system/cpu/cpu15/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "d76251e127adea75f15f830aae237f232e8e43b48232804db77c6fe6de46d2ab",
+                "LowerDir": "/var/lib/docker/overlay2/4c83e8abc5108e4fb952564c3e8f5359497fcda9d6c675e44bbd79f752e8744d-init/diff:/var/lib/docker/overlay2/resxenbov3n04vgk58lbakvru/diff:/var/lib/docker/overlay2/re1pqijdbac4a9h58ynxa96ih/diff:/var/lib/docker/overlay2/tl7mu2sfvsnm616fz27uyq8h1/diff:/var/lib/docker/overlay2/lmnylzta0mclep51pf8tev3io/diff",
+                "MergedDir": "/var/lib/docker/overlay2/4c83e8abc5108e4fb952564c3e8f5359497fcda9d6c675e44bbd79f752e8744d/merged",
+                "UpperDir": "/var/lib/docker/overlay2/4c83e8abc5108e4fb952564c3e8f5359497fcda9d6c675e44bbd79f752e8744d/diff",
+                "WorkDir": "/var/lib/docker/overlay2/4c83e8abc5108e4fb952564c3e8f5359497fcda9d6c675e44bbd79f752e8744d/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "mc714-9aca9e2bfb9745548689_node2-data",
+                "Source": "/var/lib/docker/volumes/mc714-9aca9e2bfb9745548689_node2-data/_data",
+                "Destination": "/data",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json",
+                "Destination": "/etc/mc714/cluster.json",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "d76251e127ad",
+            "Domainname": "",
+            "User": "65532:65532",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "-id",
+                "node2",
+                "-run-id",
+                "c0f4be22daed04bba8f6baba8bd9630a4",
+                "-config",
+                "/etc/mc714/cluster.json",
+                "-listen",
+                ":8080",
+                "-observer",
+                "",
+                "-data-dir",
+                "/data"
+            ],
+            "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+            "Volumes": null,
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/node"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "da5b91cd3ba9b56dca1aa40a7d2ef53a9d69179a9faa259d8235e96c343e5cca",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "mc714-9aca9e2bfb9745548689",
+                "com.docker.compose.project.config_files": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/compose.json",
+                "com.docker.compose.project.working_dir": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash",
+                "com.docker.compose.service": "node2",
+                "com.docker.compose.version": "5.6.0"
+            },
+            "StopTimeout": 8
+        },
+        "NetworkSettings": {
+            "SandboxID": "ee9d53f798b3559618c759f0ab3cd4468656c165ebbf5582372f9d591b5ee71e",
+            "SandboxKey": "/var/run/docker/netns/ee9d53f798b3",
+            "Ports": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18082"
+                    }
+                ]
+            },
+            "Networks": {
+                "mc714-9aca9e2bfb9745548689_client": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node2-1",
+                        "node2"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "c720d11ac3995b6f5b10a98855d31f120de1eb71b2445df25dc3293a6ff77cdc",
+                    "EndpointID": "9dad5c639d3c06ce0e55b315c40523324501829b30d5143002b5ca439fc39e07",
+                    "Gateway": "192.168.192.1",
+                    "IPAddress": "192.168.192.2",
+                    "MacAddress": "56:67:e6:7d:ba:7b",
+                    "IPPrefixLen": 20,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node2-1",
+                        "node2",
+                        "d76251e127ad"
+                    ]
+                },
+                "mc714-9aca9e2bfb9745548689_protocol": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node2-1",
+                        "node2",
+                        "peer-node2"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "5de58077b791fe6a30351977778cc37b16883da956b1cd81e14d0adf6c0617da",
+                    "EndpointID": "22be742af97a3553d0edcd16029c79b8eac1e45f996b66884b17150b785ef1a4",
+                    "Gateway": "",
+                    "IPAddress": "192.168.208.2",
+                    "MacAddress": "3e:61:5e:05:04:c8",
+                    "IPPrefixLen": 20,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node2-1",
+                        "node2",
+                        "peer-node2",
+                        "d76251e127ad"
+                    ]
+                }
+            }
+        }
+    },
+    {
+        "Id": "f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2",
+        "Created": "2026-10-21T15:46:20.830703393Z",
+        "Path": "/node",
+        "Args": [
+            "-id",
+            "node3",
+            "-run-id",
+            "c0f4be22daed04bba8f6baba8bd9630a4",
+            "-config",
+            "/etc/mc714/cluster.json",
+            "-listen",
+            ":8080",
+            "-observer",
+            "",
+            "-data-dir",
+            "/data"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 137,
+            "Error": "",
+            "StartedAt": "2026-10-21T15:46:20.980446875Z",
+            "FinishedAt": "2026-10-21T15:46:26.470837538Z"
+        },
+        "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+        "ResolvConfPath": "/var/lib/docker/containers/f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2/hostname",
+        "HostsPath": "/var/lib/docker/containers/f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2/hosts",
+        "LogPath": "/var/lib/docker/containers/f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2/f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2-json.log",
+        "Name": "/mc714-9aca9e2bfb9745548689-node3-1",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json:/etc/mc714/cluster.json:ro",
+                "mc714-9aca9e2bfb9745548689_node3-data:/data:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "mc714-9aca9e2bfb9745548689_client",
+            "PortBindings": {
+                "8080/tcp": [
+                    {
+                        "HostIp": "127.0.0.1",
+                        "HostPort": "18083"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": [],
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": true,
+            "SecurityOpt": [
+                "no-new-privileges:true"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 268435456,
+            "NanoCpus": 1000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 536870912,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 64,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/acpi",
+                "/proc/asound",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/sys/devices/virtual/powercap",
+                "/sys/firmware",
+                "/sys/devices/system/cpu/cpu0/thermal_throttle",
+                "/sys/devices/system/cpu/cpu1/thermal_throttle",
+                "/sys/devices/system/cpu/cpu2/thermal_throttle",
+                "/sys/devices/system/cpu/cpu3/thermal_throttle",
+                "/sys/devices/system/cpu/cpu4/thermal_throttle",
+                "/sys/devices/system/cpu/cpu5/thermal_throttle",
+                "/sys/devices/system/cpu/cpu6/thermal_throttle",
+                "/sys/devices/system/cpu/cpu7/thermal_throttle",
+                "/sys/devices/system/cpu/cpu8/thermal_throttle",
+                "/sys/devices/system/cpu/cpu9/thermal_throttle",
+                "/sys/devices/system/cpu/cpu10/thermal_throttle",
+                "/sys/devices/system/cpu/cpu11/thermal_throttle",
+                "/sys/devices/system/cpu/cpu12/thermal_throttle",
+                "/sys/devices/system/cpu/cpu13/thermal_throttle",
+                "/sys/devices/system/cpu/cpu14/thermal_throttle",
+                "/sys/devices/system/cpu/cpu15/thermal_throttle"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "ID": "f39f1afd5b9469093b8568544de6f59bd680abd9e2528de5c088184fb380f7e2",
+                "LowerDir": "/var/lib/docker/overlay2/7913f3e48d32e99ed44af7f8d908b225faef32db549ec12698e41737c5ce65b7-init/diff:/var/lib/docker/overlay2/resxenbov3n04vgk58lbakvru/diff:/var/lib/docker/overlay2/re1pqijdbac4a9h58ynxa96ih/diff:/var/lib/docker/overlay2/tl7mu2sfvsnm616fz27uyq8h1/diff:/var/lib/docker/overlay2/lmnylzta0mclep51pf8tev3io/diff",
+                "MergedDir": "/var/lib/docker/overlay2/7913f3e48d32e99ed44af7f8d908b225faef32db549ec12698e41737c5ce65b7/merged",
+                "UpperDir": "/var/lib/docker/overlay2/7913f3e48d32e99ed44af7f8d908b225faef32db549ec12698e41737c5ce65b7/diff",
+                "WorkDir": "/var/lib/docker/overlay2/7913f3e48d32e99ed44af7f8d908b225faef32db549ec12698e41737c5ce65b7/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "volume",
+                "Name": "mc714-9aca9e2bfb9745548689_node3-data",
+                "Source": "/var/lib/docker/volumes/mc714-9aca9e2bfb9745548689_node3-data/_data",
+                "Destination": "/data",
+                "Driver": "local",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/membership.json",
+                "Destination": "/etc/mc714/cluster.json",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "f39f1afd5b94",
+            "Domainname": "",
+            "User": "65532:65532",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "ExposedPorts": {
+                "8080/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "-id",
+                "node3",
+                "-run-id",
+                "c0f4be22daed04bba8f6baba8bd9630a4",
+                "-config",
+                "/etc/mc714/cluster.json",
+                "-listen",
+                ":8080",
+                "-observer",
+                "",
+                "-data-dir",
+                "/data"
+            ],
+            "Image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+            "Volumes": null,
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/node"
+            ],
+            "Labels": {
+                "com.docker.compose.config-hash": "1f5816cb79ce18172b48772c8b4d6f08072c3cc1ee23d8131d8f936c756822d0",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.depends_on": "",
+                "com.docker.compose.image": "sha256:15a334cbefe3abc3596412757e7874955a17bc70762d4276e2da12094c5604b3",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "mc714-9aca9e2bfb9745548689",
+                "com.docker.compose.project.config_files": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash/compose.json",
+                "com.docker.compose.project.working_dir": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-20261021/pilot/ra-crash",
+                "com.docker.compose.service": "node3",
+                "com.docker.compose.version": "5.6.0"
+            },
+            "StopTimeout": 8
+        },
+        "NetworkSettings": {
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "Networks": {
+                "mc714-9aca9e2bfb9745548689_client": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node3-1",
+                        "node3"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "c720d11ac3995b6f5b10a98855d31f120de1eb71b2445df25dc3293a6ff77cdc",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node3-1",
+                        "node3",
+                        "f39f1afd5b94"
+                    ]
+                },
+                "mc714-9aca9e2bfb9745548689_protocol": {
+                    "IPAMConfig": {},
+                    "Links": null,
+                    "Aliases": [
+                        "mc714-9aca9e2bfb9745548689-node3-1",
+                        "node3",
+                        "peer-node3"
+                    ],
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "5de58077b791fe6a30351977778cc37b16883da956b1cd81e14d0adf6c0617da",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "MacAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": [
+                        "mc714-9aca9e2bfb9745548689-node3-1",
+                        "node3",
+                        "peer-node3",
+                        "f39f1afd5b94"
+                    ]
+                }
+            }
+        }
+    }
+]

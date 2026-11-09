@@ -1,0 +1,404 @@
+{
+  "networks": {
+    "client": {},
+    "protocol": {
+      "internal": true
+    }
+  },
+  "services": {
+    "node1": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node1",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node1"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18081:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node1-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node2": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node2",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node2"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18082:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node2-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node3": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node3",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node3"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18083:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node3-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node4": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node4",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node4"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18084:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node4-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node5": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node5",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node5"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18085:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node5-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node6": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node6",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node6"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18086:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node6-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    },
+    "node7": {
+      "cap_drop": [
+        "ALL"
+      ],
+      "command": [
+        "-id",
+        "node7",
+        "-run-id",
+        "c49827cc8a0aa4ca8b7b758554f151aa4",
+        "-config",
+        "/etc/mc714/cluster.json",
+        "-listen",
+        ":8080",
+        "-observer",
+        "",
+        "-data-dir",
+        "/data"
+      ],
+      "cpus": 1.0,
+      "image": "sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789",
+      "mem_limit": "256m",
+      "networks": {
+        "client": {},
+        "protocol": {
+          "aliases": [
+            "peer-node7"
+          ]
+        }
+      },
+      "pids_limit": 64,
+      "ports": [
+        "127.0.0.1:18087:8080"
+      ],
+      "pull_policy": "never",
+      "read_only": true,
+      "restart": "no",
+      "security_opt": [
+        "no-new-privileges:true"
+      ],
+      "stop_grace_period": "8s",
+      "user": "65532:65532",
+      "volumes": [
+        {
+          "read_only": true,
+          "source": "/home/rodrigodog/distribuidos-mc714/t2/data/campaigns/reference-bounded-20261021/trials/ra-n7-normal-r02/membership.json",
+          "target": "/etc/mc714/cluster.json",
+          "type": "bind"
+        },
+        {
+          "source": "node7-data",
+          "target": "/data",
+          "type": "volume"
+        }
+      ]
+    }
+  },
+  "volumes": {
+    "node1-data": {},
+    "node2-data": {},
+    "node3-data": {},
+    "node4-data": {},
+    "node5-data": {},
+    "node6-data": {},
+    "node7-data": {}
+  }
+}

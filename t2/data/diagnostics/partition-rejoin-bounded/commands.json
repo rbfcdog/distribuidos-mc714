@@ -1,0 +1,253 @@
+[
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "up",
+      "-d",
+      "--no-build"
+    ],
+    "start_unix_ns": 1792598126810571531,
+    "end_unix_ns": 1792598127355843444,
+    "monotonic_duration_ns": 545271551,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": " Volume mc714-rejoin-diagnostic_node2-data Creating \n Network mc714-rejoin-diagnostic_protocol Creating \n Network mc714-rejoin-diagnostic_client Creating \n Volume mc714-rejoin-diagnostic_node2-data Creating \n Network mc714-rejoin-diagnostic_client Creating \n Network mc714-rejoin-diagnostic_protocol Creating \n Volume mc714-rejoin-diagnostic_node1-data Creating \n Volume mc714-rejoin-diagnostic_node1-data Creating \n Volume mc714-rejoin-diagnostic_node3-data Creating \n Volume mc714-rejoin-diagnostic_node3-data Creating \n Volume mc714-rejoin-diagnostic_node2-data Created \n Volume mc714-rejoin-diagnostic_node2-data Created \n Volume mc714-rejoin-diagnostic_node3-data Created \n Volume mc714-rejoin-diagnostic_node3-data Created \n Volume mc714-rejoin-diagnostic_node1-data Created \n Volume mc714-rejoin-diagnostic_node1-data Created \n Network mc714-rejoin-diagnostic_client Created \n Network mc714-rejoin-diagnostic_client Created \n Network mc714-rejoin-diagnostic_protocol Created \n Network mc714-rejoin-diagnostic_protocol Created \n Container mc714-rejoin-diagnostic-node3-1 Creating \n Container mc714-rejoin-diagnostic-node2-1 Creating \n Container mc714-rejoin-diagnostic-node1-1 Creating \n Container mc714-rejoin-diagnostic-node1-1 Created \n Container mc714-rejoin-diagnostic-node3-1 Created \n Container mc714-rejoin-diagnostic-node2-1 Created \n Container mc714-rejoin-diagnostic-node3-1 Starting \n Container mc714-rejoin-diagnostic-node2-1 Starting \n Container mc714-rejoin-diagnostic-node1-1 Starting \n Container mc714-rejoin-diagnostic-node3-1 Started \n Container mc714-rejoin-diagnostic-node2-1 Started \n Container mc714-rejoin-diagnostic-node1-1 Started \n"
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "ps",
+      "-q",
+      "node3"
+    ],
+    "start_unix_ns": 1792598127367763419,
+    "end_unix_ns": 1792598127427514075,
+    "monotonic_duration_ns": 59750499,
+    "returncode": 0,
+    "stdout": "f7acb70f458c80d0041be7bdfd16d4e8163d8a8813c30d2ae2db0252e840b3e6\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "network",
+      "disconnect",
+      "mc714-rejoin-diagnostic_protocol",
+      "f7acb70f458c80d0041be7bdfd16d4e8163d8a8813c30d2ae2db0252e840b3e6"
+    ],
+    "start_unix_ns": 1792598127427581962,
+    "end_unix_ns": 1792598127487036120,
+    "monotonic_duration_ns": 59454670,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "network",
+      "connect",
+      "--alias",
+      "peer-node3",
+      "mc714-rejoin-diagnostic_protocol",
+      "f7acb70f458c80d0041be7bdfd16d4e8163d8a8813c30d2ae2db0252e840b3e6"
+    ],
+    "start_unix_ns": 1792598128491647950,
+    "end_unix_ns": 1792598128539557778,
+    "monotonic_duration_ns": 47909214,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node1",
+      "/lab",
+      "-url",
+      "http://peer-node3:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128539722104,
+    "end_unix_ns": 1792598128609206709,
+    "monotonic_duration_ns": 69484893,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node3\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node3",
+      "/lab",
+      "-url",
+      "http://peer-node1:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128609306890,
+    "end_unix_ns": 1792598128710813712,
+    "monotonic_duration_ns": 101507277,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node1\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node3",
+      "/lab",
+      "-url",
+      "http://peer-node2:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128710926781,
+    "end_unix_ns": 1792598128786364224,
+    "monotonic_duration_ns": 75437916,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node2\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node2",
+      "/lab",
+      "-url",
+      "http://peer-node3:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128786521510,
+    "end_unix_ns": 1792598128868525112,
+    "monotonic_duration_ns": 82004003,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node3\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node1",
+      "/lab",
+      "-url",
+      "http://peer-node2:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128868643406,
+    "end_unix_ns": 1792598128979597795,
+    "monotonic_duration_ns": 110954790,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node2\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "exec",
+      "-T",
+      "node2",
+      "/lab",
+      "-url",
+      "http://peer-node1:8080",
+      "-timeout",
+      "1s"
+    ],
+    "start_unix_ns": 1792598128979704834,
+    "end_unix_ns": 1792598129068735375,
+    "monotonic_duration_ns": 89030890,
+    "returncode": 0,
+    "stdout": "{\"status\":\"ok\",\"node_id\":\"node1\",\"run_id\":\"diagnostic-bounded\"}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "logs",
+      "--no-color"
+    ],
+    "start_unix_ns": 1792598129091197560,
+    "end_unix_ns": 1792598129186941757,
+    "monotonic_duration_ns": 95742953,
+    "returncode": 0,
+    "stdout": "node2-1  | {\"time\":\"2026-10-21T15:55:27.230476638Z\",\"level\":\"INFO\",\"msg\":\"node listening\",\"node_id\":\"node2\",\"run_id\":\"diagnostic-bounded\",\"cluster_id\":\"289f2fa816060d8ae8e04bd4824f7a659fe9fb3a1a1ecb3bd60bdc863eb0f909\",\"members\":3,\"address\":\"[::]:8080\"}\nnode1-1  | {\"time\":\"2026-10-21T15:55:27.354591854Z\",\"level\":\"INFO\",\"msg\":\"node listening\",\"node_id\":\"node1\",\"run_id\":\"diagnostic-bounded\",\"cluster_id\":\"289f2fa816060d8ae8e04bd4824f7a659fe9fb3a1a1ecb3bd60bdc863eb0f909\",\"members\":3,\"address\":\"[::]:8080\"}\nnode1-1  | {\"time\":\"2026-10-21T15:55:27.362280211Z\",\"level\":\"INFO\",\"msg\":\"ra_enter\",\"run\":\"diagnostic-bounded\",\"node\":\"node1\",\"request_owner\":\"node1\",\"request_sequence\":1}\nnode1-1  | {\"time\":\"2026-10-21T15:55:27.367422362Z\",\"level\":\"INFO\",\"msg\":\"ra_exit\",\"run\":\"diagnostic-bounded\",\"node\":\"node1\",\"request_owner\":\"node1\",\"request_sequence\":1,\"error\":null}\nnode1-1  | {\"time\":\"2026-10-21T15:55:28.488864715Z\",\"level\":\"WARN\",\"msg\":\"ra_acquisition_or_work_failure\",\"run\":\"diagnostic-bounded\",\"node\":\"node1\",\"request\":{\"owner\":\"node1\",\"sequence\":2},\"error\":\"context deadline exceeded\"}\nnode2-1  | {\"time\":\"2026-10-21T15:55:28.489351732Z\",\"level\":\"WARN\",\"msg\":\"ra_acquisition_or_work_failure\",\"run\":\"diagnostic-bounded\",\"node\":\"node2\",\"request\":{\"owner\":\"node2\",\"sequence\":1},\"error\":\"context deadline exceeded\"}\nnode1-1  | {\"time\":\"2026-10-21T15:55:29.069997117Z\",\"level\":\"INFO\",\"msg\":\"ra_enter\",\"run\":\"diagnostic-bounded\",\"node\":\"node1\",\"request_owner\":\"node1\",\"request_sequence\":3}\nnode1-1  | {\"time\":\"2026-10-21T15:55:29.075116286Z\",\"level\":\"INFO\",\"msg\":\"ra_exit\",\"run\":\"diagnostic-bounded\",\"node\":\"node1\",\"request_owner\":\"node1\",\"request_sequence\":3,\"error\":null}\nnode2-1  | {\"time\":\"2026-10-21T15:55:29.077538183Z\",\"level\":\"INFO\",\"msg\":\"ra_enter\",\"run\":\"diagnostic-bounded\",\"node\":\"node2\",\"request_owner\":\"node2\",\"request_sequence\":2}\nnode2-1  | {\"time\":\"2026-10-21T15:55:29.082765639Z\",\"level\":\"INFO\",\"msg\":\"ra_exit\",\"run\":\"diagnostic-bounded\",\"node\":\"node2\",\"request_owner\":\"node2\",\"request_sequence\":2,\"error\":null}\nnode3-1  | {\"time\":\"2026-10-21T15:55:27.108593813Z\",\"level\":\"INFO\",\"msg\":\"node listening\",\"node_id\":\"node3\",\"run_id\":\"diagnostic-bounded\",\"cluster_id\":\"289f2fa816060d8ae8e04bd4824f7a659fe9fb3a1a1ecb3bd60bdc863eb0f909\",\"members\":3,\"address\":\"[::]:8080\"}\nnode3-1  | {\"time\":\"2026-10-21T15:55:28.488619926Z\",\"level\":\"WARN\",\"msg\":\"ra_acquisition_or_work_failure\",\"run\":\"diagnostic-bounded\",\"node\":\"node3\",\"request\":{\"owner\":\"node3\",\"sequence\":1},\"error\":\"context deadline exceeded\"}\nnode3-1  | {\"time\":\"2026-10-21T15:55:29.084841832Z\",\"level\":\"INFO\",\"msg\":\"ra_enter\",\"run\":\"diagnostic-bounded\",\"node\":\"node3\",\"request_owner\":\"node3\",\"request_sequence\":2}\nnode3-1  | {\"time\":\"2026-10-21T15:55:29.090009054Z\",\"level\":\"INFO\",\"msg\":\"ra_exit\",\"run\":\"diagnostic-bounded\",\"node\":\"node3\",\"request_owner\":\"node3\",\"request_sequence\":2,\"error\":null}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "docker",
+      "compose",
+      "--project-name",
+      "mc714-rejoin-diagnostic",
+      "--file",
+      "/home/rodrigodog/distribuidos-mc714/t2/data/diagnostics/partition-rejoin-bounded/compose.json",
+      "down",
+      "--volumes",
+      "--remove-orphans"
+    ],
+    "start_unix_ns": 1792598129187168108,
+    "end_unix_ns": 1792598129858770827,
+    "monotonic_duration_ns": 671602616,
+    "returncode": 0,
+    "stdout": "",
+    "stderr": " Container mc714-rejoin-diagnostic-node2-1 Stopping \n Container mc714-rejoin-diagnostic-node1-1 Stopping \n Container mc714-rejoin-diagnostic-node3-1 Stopping \n Container mc714-rejoin-diagnostic-node2-1 Stopped \n Container mc714-rejoin-diagnostic-node2-1 Removing \n Container mc714-rejoin-diagnostic-node2-1 Removed \n Container mc714-rejoin-diagnostic-node1-1 Stopped \n Container mc714-rejoin-diagnostic-node1-1 Removing \n Container mc714-rejoin-diagnostic-node1-1 Removed \n Container mc714-rejoin-diagnostic-node3-1 Stopped \n Container mc714-rejoin-diagnostic-node3-1 Removing \n Container mc714-rejoin-diagnostic-node3-1 Removed \n Volume mc714-rejoin-diagnostic_node1-data Removing \n Volume mc714-rejoin-diagnostic_node2-data Removing \n Volume mc714-rejoin-diagnostic_node3-data Removing \n Network mc714-rejoin-diagnostic_protocol Removing \n Network mc714-rejoin-diagnostic_client Removing \n Volume mc714-rejoin-diagnostic_node1-data Removed \n Volume mc714-rejoin-diagnostic_node2-data Removed \n Volume mc714-rejoin-diagnostic_node3-data Removed \n Network mc714-rejoin-diagnostic_client Removed \n Network mc714-rejoin-diagnostic_protocol Removed \n"
+  }
+]

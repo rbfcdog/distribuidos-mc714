@@ -1,0 +1,55 @@
+x-node: &node
+  build: .
+  image: mc714-t2:local
+  restart: "no"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 64
+  stop_grace_period: 8s
+  healthcheck:
+    test: [CMD, /lab, -url, "http://127.0.0.1:8080", -timeout, 1s]
+    interval: 2s
+    timeout: 2s
+    retries: 10
+    start_period: 1s
+
+services:
+  node1:
+    <<: *node
+    command: [-id, node1, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    ports: ["127.0.0.1:18081:8080"]
+    volumes:
+      - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"
+      - node1-data:/data
+  node2:
+    <<: *node
+    command: [-id, node2, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    ports: ["127.0.0.1:18082:8080"]
+    volumes:
+      - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"
+      - node2-data:/data
+  node3:
+    <<: *node
+    command: [-id, node3, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    ports: ["127.0.0.1:18083:8080"]
+    volumes:
+      - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"
+      - node3-data:/data
+  observer:
+    profiles: [verify]
+    image: mc714-t2:local
+    entrypoint: [/lab]
+    command: [-action, observe, -listen, ":8090"]
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    stop_grace_period: 8s
+    ports: ["127.0.0.1:18089:8090"]
+
+volumes:
+  node1-data:
+  node2-data:
+  node3-data:

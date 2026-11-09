@@ -1,0 +1,503 @@
+{
+  "run_id": "increment-smoke-1792593718127585912",
+  "initial_value": 0,
+  "operations": [
+    {
+      "id": "op-1",
+      "operation": "write",
+      "node_id": "node2",
+      "start_ns": 111473703928830,
+      "value": 123,
+      "end_ns": 111473704831616,
+      "http_status": 403,
+      "response": {
+        "status": "error",
+        "error": "direct writes are disabled in integrated mode",
+        "outcome": "not_applied"
+      },
+      "outcome": "not_applied"
+    },
+    {
+      "id": "op-2",
+      "operation": "read",
+      "node_id": "node1",
+      "start_ns": 111473704837441,
+      "end_ns": 111473706768871,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "operation": "read",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 1
+        },
+        "register": {
+          "tag": {
+            "counter": 0,
+            "writer_id": ""
+          },
+          "value": 0
+        },
+        "duration_ns": 1349135
+      },
+      "outcome": "completed",
+      "value": 0
+    },
+    {
+      "id": "op-3",
+      "operation": "increment",
+      "node_id": "node1",
+      "start_ns": 111473706775414,
+      "end_ns": 111473820419164,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 1
+        },
+        "before": 0,
+        "register": {
+          "tag": {
+            "counter": 1,
+            "writer_id": "node1"
+          },
+          "value": 1
+        },
+        "duration_ns": 9818982
+      },
+      "outcome": "completed",
+      "value": 1,
+      "before": 0
+    },
+    {
+      "id": "op-5",
+      "operation": "increment",
+      "node_id": "node2",
+      "start_ns": 111473822420058,
+      "end_ns": 111473833292706,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node2",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node2",
+          "sequence": 1
+        },
+        "before": 1,
+        "register": {
+          "tag": {
+            "counter": 2,
+            "writer_id": "node2"
+          },
+          "value": 2
+        },
+        "duration_ns": 9200645
+      },
+      "outcome": "completed",
+      "value": 2,
+      "before": 1
+    },
+    {
+      "id": "op-4",
+      "operation": "increment",
+      "node_id": "node1",
+      "start_ns": 111473821931405,
+      "end_ns": 111473840645715,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 2
+        },
+        "before": 2,
+        "register": {
+          "tag": {
+            "counter": 3,
+            "writer_id": "node1"
+          },
+          "value": 3
+        },
+        "duration_ns": 16510703
+      },
+      "outcome": "completed",
+      "value": 3,
+      "before": 2
+    },
+    {
+      "id": "op-6",
+      "operation": "increment",
+      "node_id": "node3",
+      "start_ns": 111473822907763,
+      "end_ns": 111473849244131,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node3",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node3",
+          "sequence": 1
+        },
+        "before": 3,
+        "register": {
+          "tag": {
+            "counter": 4,
+            "writer_id": "node3"
+          },
+          "value": 4
+        },
+        "duration_ns": 25005514
+      },
+      "outcome": "completed",
+      "value": 4,
+      "before": 3
+    },
+    {
+      "id": "op-7",
+      "operation": "increment",
+      "node_id": "node2",
+      "start_ns": 111473833305927,
+      "end_ns": 111473855779350,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node2",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node2",
+          "sequence": 2
+        },
+        "before": 4,
+        "register": {
+          "tag": {
+            "counter": 5,
+            "writer_id": "node2"
+          },
+          "value": 5
+        },
+        "duration_ns": 21294952
+      },
+      "outcome": "completed",
+      "value": 5,
+      "before": 4
+    },
+    {
+      "id": "op-8",
+      "operation": "increment",
+      "node_id": "node1",
+      "start_ns": 111473840672927,
+      "end_ns": 111473862174134,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 3
+        },
+        "before": 5,
+        "register": {
+          "tag": {
+            "counter": 6,
+            "writer_id": "node1"
+          },
+          "value": 6
+        },
+        "duration_ns": 19727416
+      },
+      "outcome": "completed",
+      "value": 6,
+      "before": 5
+    },
+    {
+      "id": "op-9",
+      "operation": "increment",
+      "node_id": "node3",
+      "start_ns": 111473849259906,
+      "end_ns": 111473868908156,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node3",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node3",
+          "sequence": 2
+        },
+        "before": 6,
+        "register": {
+          "tag": {
+            "counter": 7,
+            "writer_id": "node3"
+          },
+          "value": 7
+        },
+        "duration_ns": 18028729
+      },
+      "outcome": "completed",
+      "value": 7,
+      "before": 6
+    },
+    {
+      "id": "op-10",
+      "operation": "increment",
+      "node_id": "node2",
+      "start_ns": 111473855794479,
+      "end_ns": 111473875309500,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node2",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node2",
+          "sequence": 3
+        },
+        "before": 7,
+        "register": {
+          "tag": {
+            "counter": 8,
+            "writer_id": "node2"
+          },
+          "value": 8
+        },
+        "duration_ns": 18284374
+      },
+      "outcome": "completed",
+      "value": 8,
+      "before": 7
+    },
+    {
+      "id": "op-11",
+      "operation": "increment",
+      "node_id": "node1",
+      "start_ns": 111473862191525,
+      "end_ns": 111473880714355,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 4
+        },
+        "before": 8,
+        "register": {
+          "tag": {
+            "counter": 9,
+            "writer_id": "node1"
+          },
+          "value": 9
+        },
+        "duration_ns": 17343460
+      },
+      "outcome": "completed",
+      "value": 9,
+      "before": 8
+    },
+    {
+      "id": "op-12",
+      "operation": "increment",
+      "node_id": "node3",
+      "start_ns": 111473868927549,
+      "end_ns": 111473886949000,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "node_id": "node3",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node3",
+          "sequence": 3
+        },
+        "before": 9,
+        "register": {
+          "tag": {
+            "counter": 10,
+            "writer_id": "node3"
+          },
+          "value": 10
+        },
+        "duration_ns": 16539856
+      },
+      "outcome": "completed",
+      "value": 10,
+      "before": 9
+    },
+    {
+      "id": "op-13",
+      "operation": "read",
+      "node_id": "node1",
+      "start_ns": 111473887314730,
+      "end_ns": 111473889221036,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "operation": "read",
+        "node_id": "node1",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node1",
+          "sequence": 10
+        },
+        "register": {
+          "tag": {
+            "counter": 10,
+            "writer_id": "node3"
+          },
+          "value": 10
+        },
+        "duration_ns": 731598
+      },
+      "outcome": "completed",
+      "value": 10
+    },
+    {
+      "id": "op-14",
+      "operation": "read",
+      "node_id": "node2",
+      "start_ns": 111473889239008,
+      "end_ns": 111473892085263,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "operation": "read",
+        "node_id": "node2",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node2",
+          "sequence": 7
+        },
+        "register": {
+          "tag": {
+            "counter": 10,
+            "writer_id": "node3"
+          },
+          "value": 10
+        },
+        "duration_ns": 1236055
+      },
+      "outcome": "completed",
+      "value": 10
+    },
+    {
+      "id": "op-15",
+      "operation": "read",
+      "node_id": "node3",
+      "start_ns": 111473892101610,
+      "end_ns": 111473894541247,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "operation": "read",
+        "node_id": "node3",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node3",
+          "sequence": 7
+        },
+        "register": {
+          "tag": {
+            "counter": 10,
+            "writer_id": "node3"
+          },
+          "value": 10
+        },
+        "duration_ns": 1070746
+      },
+      "outcome": "completed",
+      "value": 10
+    },
+    {
+      "id": "op-16",
+      "operation": "increment",
+      "node_id": "node1",
+      "start_ns": 111474111445225,
+      "end_ns": 111474364549267,
+      "http_status": 504,
+      "response": {
+        "status": "error",
+        "error": "context canceled",
+        "outcome": "not_applied",
+        "request": {
+          "owner": "node1",
+          "sequence": 5
+        }
+      },
+      "outcome": "not_applied"
+    },
+    {
+      "id": "op-17",
+      "operation": "increment",
+      "node_id": "node2",
+      "start_ns": 111474111723582,
+      "end_ns": 111474364691559,
+      "http_status": 504,
+      "response": {
+        "status": "error",
+        "error": "context canceled",
+        "outcome": "not_applied",
+        "request": {
+          "owner": "node2",
+          "sequence": 4
+        }
+      },
+      "outcome": "not_applied"
+    },
+    {
+      "id": "op-18",
+      "operation": "read",
+      "node_id": "node2",
+      "start_ns": 111474364979613,
+      "end_ns": 111474367771587,
+      "http_status": 200,
+      "response": {
+        "status": "completed",
+        "operation": "read",
+        "node_id": "node2",
+        "run_id": "increment-smoke-1792593718127585912",
+        "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e",
+        "request": {
+          "owner": "node2",
+          "sequence": 8
+        },
+        "register": {
+          "tag": {
+            "counter": 10,
+            "writer_id": "node3"
+          },
+          "value": 10
+        },
+        "duration_ns": 1260960
+      },
+      "outcome": "completed",
+      "value": 10
+    }
+  ],
+  "cluster_id": "2ed9100079a9eb8579c34f4f8ea0cdaf2bdf153843457e4ea22a346e2794063e"
+}

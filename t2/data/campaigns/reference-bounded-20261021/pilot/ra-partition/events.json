@@ -1,0 +1,85 @@
+{
+  "clock_valid": true,
+  "events": [
+    {
+      "command": [
+        "docker",
+        "network",
+        "disconnect",
+        "mc714-5df06ffe723b41e2a65d_protocol",
+        "103e8d9c3aaea119b7440c8c0ce2ac5b28154d80805ad96f8e51d97109deedfa"
+      ],
+      "end_elapsed_ns": 3090995708,
+      "end_unix_ns": 1792598406666303066,
+      "event": "partition",
+      "monotonic_duration_ns": 79907689,
+      "returncode": 0,
+      "start_elapsed_ns": 3011088380,
+      "start_unix_ns": 1792598406586395738,
+      "stderr": "",
+      "stdout": ""
+    },
+    {
+      "command": [
+        "docker",
+        "network",
+        "connect",
+        "--alias",
+        "peer-node3",
+        "mc714-5df06ffe723b41e2a65d_protocol",
+        "103e8d9c3aaea119b7440c8c0ce2ac5b28154d80805ad96f8e51d97109deedfa"
+      ],
+      "end_elapsed_ns": 7072183567,
+      "end_unix_ns": 1792598410647490925,
+      "event": "heal",
+      "monotonic_duration_ns": 66044063,
+      "returncode": 0,
+      "start_elapsed_ns": 7006139868,
+      "start_unix_ns": 1792598410581447226,
+      "stderr": "",
+      "stdout": ""
+    }
+  ],
+  "measurement_start_unix_ns": 1792598403575307358,
+  "minority_probes": [
+    {
+      "body": {
+        "cluster_id": "31bbcea1bf08e857e2104045a6790a5bc43041d2fa7ff277436f55f09f31c4d6",
+        "members": [
+          {
+            "id": "node1",
+            "url": "http://peer-node1:8080"
+          },
+          {
+            "id": "node2",
+            "url": "http://peer-node2:8080"
+          },
+          {
+            "id": "node3",
+            "url": "http://peer-node3:8080"
+          }
+        ],
+        "mode": "standalone",
+        "node_id": "node3",
+        "quorum": 2,
+        "run_id": "ca3218169bf3a480b84ccda16de78acc0"
+      },
+      "end_unix_ns": 1792598406667136776,
+      "http_status": 200,
+      "path": "/cluster",
+      "start_unix_ns": 1792598406666317637
+    },
+    {
+      "body": {
+        "node_id": "node3",
+        "run_id": "ca3218169bf3a480b84ccda16de78acc0",
+        "status": "ok"
+      },
+      "end_unix_ns": 1792598406667670088,
+      "http_status": 200,
+      "path": "/healthz",
+      "start_unix_ns": 1792598406667140039
+    }
+  ],
+  "schema": 1
+}
