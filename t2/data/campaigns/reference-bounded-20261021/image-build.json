@@ -1,0 +1,15 @@
+{
+  "command": [
+    "docker",
+    "build",
+    "--tag",
+    "mc714-campaign:30e559416f434093ab27cda6f8f1fb8f",
+    "."
+  ],
+  "end_unix_ns": 1792598159487120234,
+  "monotonic_duration_ns": 724362917,
+  "returncode": 0,
+  "start_unix_ns": 1792598158762757200,
+  "stderr": "#0 building with \"default\" instance using docker driver\n\n#1 [internal] load build definition from Dockerfile\n#1 transferring dockerfile: 478B done\n#1 DONE 0.0s\n\n#2 [internal] load metadata for docker.io/library/golang:1.26.4\n#2 DONE 0.5s\n\n#3 [internal] load .dockerignore\n#3 transferring context: 88B done\n#3 DONE 0.0s\n\n#4 [build 1/6] FROM docker.io/library/golang:1.26.4@sha256:f96cc555eb8db430159a3aa6797cd5bae561945b7b0fe7d0e284c63a3b291609\n#4 DONE 0.0s\n\n#5 [internal] load build context\n#5 transferring context: 1.69kB done\n#5 DONE 0.0s\n\n#6 [stage-1 1/4] COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/\n#6 CACHED\n\n#7 [stage-1 3/4] COPY --from=build /out/lab /lab\n#7 CACHED\n\n#8 [build 3/6] COPY go.mod ./\n#8 CACHED\n\n#9 [build 6/6] RUN CGO_ENABLED=0 go build -trimpath -o /out/ ./cmd/node ./cmd/lab && mkdir /out/data\n#9 CACHED\n\n#10 [stage-1 2/4] COPY --from=build /out/node /node\n#10 CACHED\n\n#11 [build 5/6] COPY internal/ ./internal/\n#11 CACHED\n\n#12 [build 2/6] WORKDIR /src\n#12 CACHED\n\n#13 [build 4/6] COPY cmd/ ./cmd/\n#13 CACHED\n\n#14 [stage-1 4/4] COPY --from=build --chown=65532:65532 /out/data /data\n#14 CACHED\n\n#15 exporting to image\n#15 exporting layers done\n#15 writing image sha256:a700da7f27e19fb6774581343f5ceab99a7eff535b961cd7049f64829efed789 done\n#15 naming to docker.io/library/mc714-campaign:30e559416f434093ab27cda6f8f1fb8f done\n#15 DONE 0.0s\n",
+  "stdout": ""
+}
