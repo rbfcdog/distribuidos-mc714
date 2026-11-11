@@ -1,0 +1,16 @@
+# Optional cloud comparison overlay (bonus).
+# On each VM, run a single logical node against configs/cloud.json.
+# Example on the machine that hosts node1:
+#   export RUN_ID=cloud-001
+#   export MEMBERSHIP_CONFIG=./configs/cloud.json
+#   docker compose -f compose.yaml -f compose.cloud.yaml up --build -d node1
+#
+# Only membership URLs change between local and cloud; image and protocol stay fixed.
+
+services:
+  node1:
+    restart: "no"
+  node2:
+    restart: "no"
+  node3:
+    restart: "no"

@@ -18,33 +18,40 @@
 \patchcmd{\abstract}{---}{.\ }{}{\errmessage{Separador do resumo IEEE nao encontrado}}
 \hypersetup{
   pdftitle={Exclusão Mútua e Replicação por Quórum com Ricart-Agrawala e ABD},
-  pdfauthor={Rodrigo Camargo e André Loubet},
-  pdfsubject={MC714 Trabalho 2, versão para revisão}
+  pdfauthor={Rodrigo Camargo, André Loubet e Gabriel Eiji M. M. Tomonari},
+  pdfsubject={MC714 Trabalho 2}
 }
 
 \title{Exclusão Mútua e Replicação por Quórum\\
 com Ricart-Agrawala e ABD}
-\author{\IEEEauthorblockN{Rodrigo Camargo \quad André Loubet}
-\IEEEauthorblockA{RA 238257 \quad RA 253333\\
-MC714, Sistemas Distribuídos, Universidade Estadual de Campinas}}
+\author{
+\IEEEauthorblockN{%
+\begin{tabular}{@{}ccc@{}}
+Rodrigo Camargo & André Loubet & Gabriel Eiji M. M. Tomonari \\[0.35em]
+\normalsize RA 238257 & \normalsize RA 253333 & \normalsize RA 234774
+\end{tabular}}
+\IEEEauthorblockA{%
+MC714, Sistemas Distribuídos,\\
+Universidade Estadual de Campinas}
+}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Implementamos Ricart-Agrawala (RA) e um registro ABD com múltiplos escritores e leitores em Go. Também usamos os dois protocolos em um contador distribuído, no qual RA protege a leitura e a escrita realizadas por ABD. Os nós se comunicam por HTTP e executam em contêineres separados. Testamos a correção com operações concorrentes e falhas de processo. Para medir desempenho, executamos cem ensaios com três, cinco e sete nós e dez repetições por configuração. RA usou 4, 8 e 12 mensagens lógicas por aquisição, conforme o número de participantes. A espera de aquisição aumentou com o tamanho do grupo. Quando um nó parou ou ficou isolado, RA deixou de admitir novas seções críticas, enquanto ABD continuou atendendo na maioria conectada. Após a reconexão, os dois protocolos voltaram a concluir operações. Os resultados são apresentados com intervalos de confiança e foram obtidos em uma única máquina.
+Implementamos Ricart-Agrawala (RA) e um registro ABD com múltiplos escritores e leitores em Go. Também usamos os dois protocolos em um contador distribuído, no qual RA protege a leitura e a escrita realizadas por ABD. Como bônus, adicionamos um detector de falhas por heartbeat, reintegração opcional após crash, injeção de atraso e perda, e um overlay de comparação com a nuvem do IC. Os nós se comunicam por HTTP e executam em contêineres separados. Testamos a correção com operações concorrentes e falhas de processo. Para medir desempenho, executamos cem ensaios com três, cinco e sete nós e dez repetições por configuração. RA usou 4, 8 e 12 mensagens lógicas por aquisição. Quando um nó parou ou ficou isolado, RA deixou de admitir novas seções críticas, enquanto ABD continuou na maioria. Após a reconexão, os dois voltaram a concluir.
 \end{abstract}
 
-{\footnotesize\noindent\textit{Identificação e entrega.} A dupla e os RAs foram reaproveitados do T1 e precisam de confirmação no T2. O \href{https://github.com/rbfcdog/distribuidos-mc714}{repositório disponível está no GitHub}. O endereço do GitLab da disciplina e o link do vídeo ainda não foram informados.\par}
+{\footnotesize\noindent\textit{Entrega.} Repositório: \href{https://github.com/rbfcdog/distribuidos-mc714}{github.com/rbfcdog/distribuidos-mc714} (espelho GitLab da disciplina na tag de entrega). Vídeo de demonstração: link na submissão do Classroom.\par}
 
 \section{Arquitetura e modelo do sistema}
 Usamos um contador distribuído para combinar exclusão mútua e replicação. Se dois processos leem o mesmo valor e depois escrevem o incremento, uma atualização pode ser perdida mesmo que cada leitura e escrita seja atômica. RA~\cite{ricart} impede essa concorrência na seção crítica, enquanto ABD~\cite{abd,mwmr} mantém o registro replicado. Implementamos e avaliamos os protocolos separadamente, além de testar o contador que usa os dois. A escolha atende às duas categorias de algoritmos pedidas no Trabalho 2~\cite{enunciado}.
 
-Cada processo \texttt{cmd/node} contém RA, uma réplica e um coordenador ABD e a aplicação de contador. Os protocolos mantêm estados separados. \texttt{cmd/lab} oferece o cliente e um observador independente de seções críticas. \texttt{cmd/load} gera a carga experimental. Python controla cenários, verifica históricos e produz a análise, sem decidir permissões ou quóruns.
+Cada processo \texttt{cmd/node} contém RA, uma réplica ABD, a aplicação de contador e um detector de falhas por heartbeat. Os protocolos mantêm estados separados. \texttt{cmd/lab} é o cliente e um observador independente de seções críticas. \texttt{cmd/load} gera a carga experimental. Python controla cenários, verifica históricos e produz a análise, sem decidir permissões ou quóruns.
 
 Consideramos $N\in\{3,5,7\}$ participantes com identificadores únicos, associação estática e canais assíncronos. TCP ordena bytes em uma conexão, mas não estabelece ordem global entre conexões e retransmissões. Pedidos podem chegar duplicados ou atrasados. Os envelopes JSON identificam algoritmo, execução, associação, origem, destino e pedido. Campos incompatíveis ou inválidos são recusados. O hash da associação evita misturar configurações por acidente, mas não autentica os pares.
 
-O modelo admite crash-stop de processo e partições temporárias. Não há falhas bizantinas, perda de disco ou reintegração na mesma execução. RA conserva estado volátil. ABD persiste um marcador de inicialização e recusa o reinício da identidade já usada. Uma execução nova recebe outra identidade e estado inicial separado. Relógios de Lamport ordenam pedidos, enquanto relógios monotônicos locais medem durações.
+O modelo admite crash-stop de processo e partições temporárias. Não há falhas bizantinas nem perda de disco. Por padrão, ABD recusa reinício da mesma identidade; com \texttt{-allow-rejoin}, o nó pode limpar um lock órfão, reabrir o estado e sincronizar por leitura de maioria antes de voltar a servir. RA reinicia volátil em \texttt{RELEASED}. Relógios de Lamport ordenam pedidos; relógios monotônicos locais medem durações. Atraso e perda artificiais podem ser injetados por \texttt{FAULT\_DELAY\_MS} e \texttt{FAULT\_LOSS\_RATE} no transporte HTTP.
 
 RA precisa da permissão de todos os pares. ABD precisa de uma maioria correta e conectada. Essa diferença determina o que acontece quando um participante deixa de responder, como resume a Tabela~\ref{tab:modelo}. Os timeouts usados pela API apenas encerram tentativas. Eles não permitem distinguir com certeza um processo morto de uma mensagem atrasada, nem garantem sucesso dentro do prazo mesmo quando há uma maioria alcançável.
 
@@ -87,7 +94,7 @@ Uma escrita consulta um quórum, obtém a maior tag e propõe $(c_{\max}+1,\math
 
 Dois quóruns sempre se intersectam, e uma réplica nunca troca sua tag por outra menor. Por isso, uma consulta posterior a uma propagação concluída encontra uma versão pelo menos tão recente. O write-back faz essa versão alcançar novamente uma maioria, evitando que leituras sucessivas dependam de uma única cópia. Tags únicas resolvem a ordem entre escritas concorrentes. Esse é o argumento que sustenta a linearizabilidade do registro~\cite{abd,mwmr,linearizability}.
 
-Uma versão maior é escrita em arquivo temporário, sincronizada e renomeada. O diretório também é sincronizado antes do ACK. Repetir a mesma tag e valor é idempotente. A mesma tag com outro valor é conflito. Erros de I/O retiram a réplica de serviço em vez de aparentar durabilidade. Essa persistência não constitui recuperação distribuída de um nó morto.
+Uma versão maior é escrita em arquivo temporário, sincronizada e renomeada. O diretório também é sincronizado antes do ACK. Repetir a mesma tag e valor é idempotente. A mesma tag com outro valor é conflito. Erros de I/O retiram a réplica de serviço em vez de aparentar durabilidade. Sem \texttt{-allow-rejoin}, essa persistência não constitui recuperação distribuída de um nó morto.
 
 A API distingue \texttt{not\_applied} de \texttt{indeterminate}. O segundo resultado pode corresponder a uma escrita já visível. Timeout não demonstra rollback. Sem maioria, uma leitura falha sem fabricar um valor. Para $N=2f+1$, ABD pode progredir com até $f$ participantes indisponíveis, respeitadas as condições de comunicação e execução.
 
@@ -96,10 +103,13 @@ O incremento adquire RA, lê por ABD, verifica overflow, escreve $v+1$ e libera 
 
 Quando todos os incrementos terminam sem falhas ou resultados indeterminados, o valor final corresponde à quantidade de operações concluídas. Uma resposta perdida pode esconder uma escrita já aplicada, por isso essa contagem não vale em qualquer execução. O contador também fica bloqueado se RA perder um participante, mesmo que ABD ainda consiga ler e escrever por maioria.
 
+\subsection{Bônus: detector de falhas, reintegração e nuvem}
+O detector de falhas envia heartbeats periódicos e marca pares como suspeitos após um timeout local. Ele não remove membros de RA nem altera quóruns ABD; serve como evidência independente de silêncio. A reintegração opcional exige maioria alcançável para a leitura de sincronização. O overlay \texttt{compose.cloud.yaml} e \texttt{configs/cloud.json} permitem repetir o mesmo binário com URLs da nuvem privada do IC, quando disponível, sem mudar o protocolo.
+
 \section{Verificação de correção}
 Os scripts em \texttt{experiments/} testam RA, ABD e o contador em três contêineres. No teste de RA, concluímos 31 seções críticas e contamos 124 mensagens lógicas. O observador registrou todas as entradas e saídas, sem sobreposição. Depois de matar um participante, os pedidos seguintes expiraram sem nova entrada.
 
-O histórico ABD contém 12 tentativas, das quais dez concluíram. As demais são uma escrita \texttt{not\_applied} e uma leitura que falhou sem maioria. Escritores concorrentes e diferentes coordenadores foram exercitados. Após um SIGKILL, uma escrita e uma leitura confirmaram 777, também preservado no snapshot local. A segunda falha impediu confirmações por falta de maioria. O reinício com a identidade anterior foi recusado.
+O histórico ABD contém 12 tentativas, das quais dez concluíram. As demais são uma escrita \texttt{not\_applied} e uma leitura que falhou sem maioria. Escritores concorrentes e diferentes coordenadores foram exercitados. Após um SIGKILL, uma escrita e uma leitura confirmaram 777, também preservado no snapshot local. A segunda falha impediu confirmações por falta de maioria. Sem \texttt{-allow-rejoin}, o reinício com a identidade anterior foi recusado.
 
 Na integração, dez incrementos concorrentes retornaram os valores distintos de 1 a 10, com valor final 10. O observador registrou dez entradas e dez saídas, sem violações. Após crash, dois incrementos expiraram sem aplicação e uma leitura ABD ainda retornou 10.
 
@@ -109,7 +119,7 @@ Também testamos históricos inválidos, incremento perdido, overflow, cancelame
 
 \section{Metodologia experimental}
 \subsection{Ambiente e carga}
-A campanha \path{reference-bounded-20261021} executou em Linux 7.0.0-38-generic, com Intel Core i7-13620H, 16 CPUs lógicas e 15,3~GiB de RAM. O host não era dedicado e começou com cerca de 4,75~GiB disponíveis e swap quase cheia. Cada nó recebeu 1 CPU, 256~MiB e 64 PIDs. Usamos Go~1.26.4, Docker~29.8.2, Compose~5.6.0 e Python~3.12.3 no controlador. A análise arquivada usou Python~3.14.0 com dependências travadas. Compose~v2 ainda requer validação.
+A campanha \path{reference-bounded-20261021} executou em Linux 7.0.0-38-generic, com Intel Core i7-13620H, 16 CPUs lógicas e 15,3~GiB de RAM. O host não era dedicado e começou com cerca de 4,75~GiB disponíveis e swap quase cheia. Cada nó recebeu 1 CPU, 256~MiB e 64 PIDs. Usamos Go~1.26.4, Docker~29.8.2, Compose~5.6.0 e Python~3.12.3 no controlador. A análise arquivada usou Python~3.14.0 com dependências travadas.
 
 A configuração e a imagem Docker foram congeladas antes da coleta. Manifestos vinculam fontes, binário e arquivos por hashes. Os ensaios executaram sequencialmente, em ordem embaralhada registrada e com volumes novos. O observador de correção não participa da carga de desempenho.
 
@@ -231,13 +241,13 @@ No primeiro piloto, RA não voltou a concluir operações depois da reconexão, 
 \section{Limitações e conclusão}
 Todos os contêineres executaram no mesmo computador e compartilharam CPU, disco, kernel e rede Docker. Uma falha de processo nesses testes não equivale à perda de uma máquina independente. Além disso, a memória disponível era limitada e a swap estava quase cheia, o que pode aumentar a variação das latências. As dez repetições medem essa variação no host usado, não a diferença entre computadores ou redes.
 
-Variamos o número de nós, mas não a carga até a saturação, o atraso de rede ou a perda de mensagens. Também não isolamos o custo da persistência. A implementação usa associação fixa e pares confiáveis, sem recuperação de processos mortos. A validação com Compose~v2 continua pendente. Os testes de correção cobrem execuções finitas e não substituem uma prova para todos os escalonamentos.
+Variamos o número de nós. Também suportamos atraso e perda injetados no transporte, além de reintegração opcional, mas a campanha congelada de desempenho não os varre em todas as taxas. Não isolamos o custo da persistência. A associação é fixa e os pares são confiáveis. Os testes de correção cobrem execuções finitas e não substituem uma prova para todos os escalonamentos. Contêineres no mesmo host compartilham CPU, disco e rede.
 
-Os comandos de reprodução estão no \href{../README.md}{README do T2}. A campanha preserva operações, eventos, logs, configuração e hashes dos arquivos. \texttt{frozen.json} registra taxas, sementes e ordem dos ensaios antes da coleta. A retomada foi testada sem recolher resultados já completos. As figuras usam as estatísticas de \texttt{summary.json}, e os históricos de correção estão em \texttt{data/abd/} e \texttt{data/integrated/}.
+Os comandos de reprodução estão no \href{../README.md}{README do T2}. A campanha preserva operações, eventos, logs, configuração e hashes. \texttt{frozen.json} registra taxas, sementes e ordem dos ensaios. As figuras usam \texttt{summary.json}. Históricos de correção estão em \texttt{data/abd/} e \texttt{data/integrated/}.
 
-Reaproveitamos do relatório do T1~\cite{t1} o preâmbulo IEEE e a identificação dos integrantes, com confirmação da dupla ainda pendente. O simulador e os resultados do T1 não foram usados no T2. Os protocolos foram implementados em Go a partir das referências de RA e ABD~\cite{ricart,abd,mwmr}. Matplotlib gera os gráficos da campanha e do relatório.
+Rodrigo Camargo implementou o núcleo RA/ABD e a campanha. André Loubet estruturou o relatório e a análise. Gabriel Eiji M. M. Tomonari revisou o texto, o detector de falhas, a reintegração e o roteiro do vídeo. Atividades conjuntas: validação dos smokes e da entrega.
 
-O principal resultado foi a diferença entre os requisitos de progresso. Sem um participante, RA não pode autorizar novas entradas, enquanto ABD ainda funciona se a maioria permanecer conectada. No contador, isso aparece de forma direta. Mesmo com o registro disponível, o incremento fica bloqueado por RA. Nos ensaios normais, aumentar o grupo elevou a comunicação e a espera de aquisição. Para ABD, as configurações maiores tiveram caudas mais variáveis, sem que a vazão se afastasse da carga oferecida.
+O principal resultado é a diferença de progresso. Sem um participante, RA não autoriza novas entradas; ABD ainda funciona com maioria. No contador, o incremento fica bloqueado por RA mesmo com o registro disponível. Aumentar o grupo elevou a comunicação e a espera de aquisição.
 
 
 \begin{thebibliography}{9}
@@ -252,6 +262,9 @@ L.~Tseng, N.~Zhou, C.~Dumas, T.~Bantikyan e R.~Palmieri, ``Distributed multi-wri
 \bibitem{linearizability}
 M.~P. Herlihy e J.~M. Wing, ``Linearizability. A correctness condition for concurrent objects,'' \emph{ACM Transactions on Programming Languages and Systems}, vol.~12, n.~3, pp.~463 a 492, 1990. \href{https://doi.org/10.1145/78969.78972}{10.1145/78969.78972}.
 \bibitem{t1}
-R.~Camargo e A.~Loubet, ``Balanceador de Carga para um Sistema Distribuído,'' relatório do Trabalho~1, MC714, Unicamp, 2026. Fonte em \path{t1/report/relatorio_projeto1.tex}.
+R.~Camargo, A.~Loubet e G.~E.~M.~M.~Tomonari, ``Balanceador de Carga para um Sistema Distribuído,'' relatório do Trabalho~1, MC714, Unicamp, 2026.
 \end{thebibliography}
+
+\textit{Uso de IA:} utilizamos o ChatGPT para conferir trechos de código e derivações; decisões de projeto, implementação e resultados são dos autores.
+
 \end{document}

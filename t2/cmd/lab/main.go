@@ -29,7 +29,7 @@ func main() {
 
 func run(args []string, output io.Writer) error {
 	flags := flag.NewFlagSet("lab", flag.ContinueOnError)
-	action := flags.String("action", "health", "health, ra, observe, read, write, or increment")
+	action := flags.String("action", "health", "health, ra, observe, read, write, increment, or fd")
 	url := flags.String("url", "http://127.0.0.1:8080", "node base URL")
 	timeout := flags.Duration("timeout", 5*time.Second, "maximum request or graceful shutdown duration")
 	holdMS := flags.Int64("hold-ms", 50, "critical-section work duration in milliseconds (0..500)")
@@ -95,6 +95,21 @@ func run(args []string, output io.Writer) error {
 			return err
 		}
 		return json.NewEncoder(output).Encode(result)
+	case "fd":
+		resp, err := client.Get(strings.TrimRight(*url, "/") + "/fd/state")
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<10))
+			return fmt.Errorf("fd state: HTTP %d: %s", resp.StatusCode, bytes.TrimSpace(body))
+		}
+		_, err = io.Copy(output, resp.Body)
+		if err == nil {
+			_, _ = fmt.Fprintln(output)
+		}
+		return err
 	default:
 		return fmt.Errorf("unknown -action %q", *action)
 	}

@@ -19,6 +19,8 @@ import (
 	"mc714-t2/internal/abd"
 	"mc714-t2/internal/config"
 	"mc714-t2/internal/counter"
+	"mc714-t2/internal/faults"
+	"mc714-t2/internal/fd"
 	"mc714-t2/internal/ra"
 	"mc714-t2/internal/wire"
 )
@@ -39,6 +41,7 @@ func run(args []string) error {
 	membership := flags.String("config", "", "membership JSON path (required)")
 	observer := flags.String("observer", "", "optional correctness observer base URL")
 	dataDir := flags.String("data-dir", ".state", "durable state root (scoped by run and node)")
+	allowRejoin := flags.Bool("allow-rejoin", false, "allow crash recovery of a previously started identity")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -52,6 +55,7 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("load cluster: %w", err)
 	}
+	faultCfg := faults.FromEnv()
 
 	body, err := json.Marshal(wire.Health{Status: "ok", NodeID: *id, RunID: *runID})
 	if err != nil {
@@ -61,13 +65,16 @@ func run(args []string) error {
 	if err != nil {
 		return fmt.Errorf("encode cluster response: %w", err)
 	}
-	service, err := ra.NewService(cluster, *observer)
+	service, err := ra.NewServiceOpts(cluster, *observer, ra.ServiceOptions{Faults: faultCfg})
 	if err != nil {
 		return fmt.Errorf("start Ricart-Agrawala: %w", err)
 	}
 	defer service.Close()
 	replicaDir := filepath.Join(*dataDir, cluster.RunID, cluster.NodeID)
-	replication, err := abd.NewService(cluster, replicaDir)
+	replication, err := abd.NewServiceOpts(cluster, replicaDir, abd.ServiceOptions{
+		AllowRejoin: *allowRejoin,
+		Faults:      faultCfg,
+	})
 	if err != nil {
 		return fmt.Errorf("start ABD: %w", err)
 	}
@@ -76,6 +83,12 @@ func run(args []string) error {
 			slog.Error("ABD close failed", "error", err)
 		}
 	}()
+	detector, err := fd.NewService(cluster, faultCfg)
+	if err != nil {
+		return fmt.Errorf("start failure detector: %w", err)
+	}
+	defer detector.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -87,6 +100,7 @@ func run(args []string) error {
 	})
 	service.Register(mux)
 	replication.Register(mux)
+	detector.Register(mux)
 	counter.NewService(cluster, service, replication).Register(mux)
 	server := &http.Server{
 		Handler:           mux,
@@ -106,7 +120,11 @@ func run(args []string) error {
 	defer server.Close()
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- server.Serve(listener) }()
-	slog.Info("node listening", "node_id", *id, "run_id", *runID, "cluster_id", cluster.ClusterID, "members", len(cluster.Members), "address", listener.Addr().String())
+	slog.Info("node listening",
+		"node_id", *id, "run_id", *runID, "cluster_id", cluster.ClusterID,
+		"members", len(cluster.Members), "address", listener.Addr().String(),
+		"allow_rejoin", *allowRejoin, "fault_delay_ms", faultCfg.Delay.Milliseconds(),
+		"fault_loss_rate", faultCfg.LossRate)
 
 	select {
 	case err := <-serveErr:
