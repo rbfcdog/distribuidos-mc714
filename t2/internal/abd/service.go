@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"mc714-t2/internal/config"
+	"mc714-t2/internal/faults"
 	"mc714-t2/internal/wire"
 )
 
@@ -40,12 +41,23 @@ type Service struct {
 	closeErr  error
 }
 
+// ServiceOptions configures optional rejoin and fault injection.
+type ServiceOptions struct {
+	AllowRejoin bool
+	Faults      faults.Config
+}
+
 func NewService(cluster config.Cluster, dir string) (*Service, error) {
-	store, err := OpenStore(dir, cluster)
+	return NewServiceOpts(cluster, dir, ServiceOptions{})
+}
+
+func NewServiceOpts(cluster config.Cluster, dir string, opts ServiceOptions) (*Service, error) {
+	store, err := OpenStoreOpts(dir, cluster, OpenOptions{AllowRejoin: opts.AllowRejoin})
 	if err != nil {
 		return nil, err
 	}
-	if err := store.MarkStarted(); err != nil {
+	rejoined, err := store.MarkStartedOrRejoin(opts.AllowRejoin)
+	if err != nil {
 		return nil, errors.Join(err, store.Close())
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -56,11 +68,26 @@ func NewService(cluster config.Cluster, dir string) (*Service, error) {
 	transport.MaxConnsPerHost = 2
 	transport.ResponseHeaderTimeout = messageTimeout
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Service{
+	service := &Service{
 		cluster: cluster, store: store, ctx: ctx, cancel: cancel,
-		gate:   make(chan struct{}, 1),
-		client: &http.Client{Transport: transport, Timeout: messageTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
-	}, nil
+		gate: make(chan struct{}, 1),
+		client: &http.Client{
+			Transport:     faults.Wrap(transport, opts.Faults),
+			Timeout:       messageTimeout,
+			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		},
+	}
+	if rejoined {
+		// Catch up from a majority before accepting client writes.
+		syncCtx, syncCancel := context.WithTimeout(ctx, 3*time.Second)
+		_, syncErr := service.Read(syncCtx)
+		syncCancel()
+		if syncErr != nil {
+			_ = service.Close()
+			return nil, fmt.Errorf("rejoin sync from majority: %w", syncErr)
+		}
+	}
+	return service, nil
 }
 
 func (s *Service) Register(mux *http.ServeMux) {

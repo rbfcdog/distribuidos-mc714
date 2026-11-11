@@ -1,0 +1,119 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{MC714 --- Trabalho 2}
+\fancyhead[R]{Roteiro do vídeo (teleprompter)}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\onehalfspacing
+
+\newcommand{\cue}[1]{\par\medskip\noindent\textit{[#1]}\par\medskip}
+
+\begin{document}
+
+\begin{center}
+{\LARGE\bfseries Roteiro do vídeo --- Trabalho 2}\\[0.35em]
+{\large MC714 --- Sistemas Distribuídos}\\[0.5em]
+{\normalsize Rodrigo Camargo (238257) \quad André Loubet (253333) \quad Gabriel Eiji Tomonari (234774)}\\[0.3em]
+{\small $\approx$ 5 minutos \quad / \quad $\approx$ 1:40 por pessoa}
+\end{center}
+
+\section*{Antes de gravar}
+Cluster no ar, comandos copiados, fonte grande no teleprompter.
+
+\section{0:00--1:40 --- Rodrigo}
+
+\begin{quote}\large
+Olá. Somos Rodrigo Camargo, André Loubet e Gabriel Eiji Tomonari. Este é o Trabalho 2 de MC714.
+
+A gente implementou dois algoritmos principais. O primeiro é exclusão mútua, com Ricart-Agrawala. O segundo é um registro replicado ABD, com vários leitores e escritores.
+
+Também juntamos os dois num contador. Para incrementar, o nó pega a seção crítica, lê, escreve valor mais um, e só então libera o lock.
+
+Como bônus, tem um detector de falhas por heartbeat, reintegração depois de crash, e injeção de atraso e perda na rede.
+
+Tudo isso roda em Go, por HTTP, cada nó num contêiner. RA precisa da resposta de todo mundo. ABD precisa só da maioria. Essa diferença aparece bem quando a gente mata um nó.
+\end{quote}
+
+\cue{docker compose ps}
+
+\section{1:40--3:20 --- André}
+
+\begin{quote}\large
+Beleza. Cenário normal.
+
+Três nós no ar. Vou pedir seções críticas concorrentes no Ricart-Agrawala. O observador só anota entrada e saída. Ele não dá permissão. A gente espera zero sobreposição.
+\end{quote}
+
+\cue{python3 experiments/ra\_smoke.py}
+
+\begin{quote}\large
+Sem falha, cada aquisição manda duas vezes N menos um mensagens.
+
+Agora o ABD. Escrevo num nó e leio em outro. A escrita pergunta pra maioria, escolhe uma tag maior e espalha o valor. A leitura também pergunta pra maioria e faz write-back se precisar.
+\end{quote}
+
+\cue{write 42 no node1; read no node2}
+
+\begin{quote}\large
+No contador integrado, dez incrementos ao mesmo tempo deveriam virar de um a dez, com valor final dez. Nesse modo a escrita ABD direta fica bloqueada.
+\end{quote}
+
+\section{3:20--5:00 --- Gabriel}
+
+\begin{quote}\large
+Agora a falha.
+
+Vou derrubar o node3. O detector de falhas deve marcar ele como suspeito. No RA, novas aquisições não concluem. No ABD, a maioria continua lendo e escrevendo.
+
+O contador integrado depende do RA, então ele também para. A leitura ABD sozinha continua ok.
+\end{quote}
+
+\cue{kill node3; lab -action fd; tentar RA; read ABD}
+
+\begin{quote}\large
+Se a gente sobe o node3 de novo com allow-rejoin, ele sincroniza o registro pela maioria e volta a participar.
+
+Na campanha grande, com três, cinco e sete nós, RA ficou em dez pedidos por segundo e ABD em vinte. Em partição, ABD seguiu na maioria; RA parou. Depois da reconexão, os dois voltaram.
+
+Um cuidado: tudo isso foi numa máquina só. Contêiner não é máquina independente.
+
+Código, testes, dados e relatório estão no repositório. Obrigado.
+\end{quote}
+
+\cue{tela final: repo + nomes}
+
+\section*{Divisão}
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Rodrigo & intro e modelo \\
+André & demo normal \\
+Gabriel & falha, rejoin, fechamento \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Comandos}
+\begin{verbatim}
+python3 experiments/ra_smoke.py
+./bin/lab -action write -url http://127.0.0.1:18081 -value 42 -wait-ms 3000
+./bin/lab -action read  -url http://127.0.0.1:18082 -wait-ms 3000
+docker compose kill node3
+./bin/lab -action fd -url http://127.0.0.1:18081
+./bin/lab -action ra -url http://127.0.0.1:18081 -hold-ms 50 -wait-ms 1000 -timeout 2s
+./bin/lab -action read -url http://127.0.0.1:18081 -wait-ms 3000
+\end{verbatim}
+
+\end{document}

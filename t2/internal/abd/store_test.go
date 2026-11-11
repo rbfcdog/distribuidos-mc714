@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -321,6 +322,9 @@ func TestStoreCloseDoesNotRemoveReplacementLock(t *testing.T) {
 	defer store.Close()
 	path := filepath.Join(dir, ".lock")
 	if err := os.Remove(path); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skip("windows cannot replace an open lock file inode")
+		}
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte("another owner"), 0600); err != nil {

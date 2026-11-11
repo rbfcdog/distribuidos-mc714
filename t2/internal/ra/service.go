@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"mc714-t2/internal/config"
+	"mc714-t2/internal/faults"
 	"mc714-t2/internal/wire"
 )
 
@@ -50,7 +51,16 @@ type replyOutbox struct {
 	wake      chan struct{}
 }
 
+// ServiceOptions configures optional fault injection on RA RPCs.
+type ServiceOptions struct {
+	Faults faults.Config
+}
+
 func NewService(cluster config.Cluster, observerURL string) (*Service, error) {
+	return NewServiceOpts(cluster, observerURL, ServiceOptions{})
+}
+
+func NewServiceOpts(cluster config.Cluster, observerURL string, opts ServiceOptions) (*Service, error) {
 	if observerURL != "" {
 		u, err := url.Parse(observerURL)
 		if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Opaque != "" || u.RawQuery != "" || u.ForceQuery || strings.Contains(observerURL, "#") || u.RawPath != "" || (u.Path != "" && u.Path != "/") {
@@ -77,7 +87,7 @@ func NewService(cluster config.Cluster, observerURL string) (*Service, error) {
 	s := &Service{
 		cluster: cluster, engine: NewEngine(cluster), observerURL: observerURL,
 		ctx: ctx, cancel: cancel, peers: make(map[string]*replyOutbox, len(cluster.Members)),
-		client: &http.Client{Transport: transport, Timeout: messageTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
+		client: &http.Client{Transport: faults.Wrap(transport, opts.Faults), Timeout: messageTimeout, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }},
 	}
 	for _, member := range cluster.Members {
 		if member.ID == cluster.NodeID {

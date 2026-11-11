@@ -17,21 +17,30 @@ x-node: &node
 services:
   node1:
     <<: *node
-    command: [-id, node1, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    command: [-id, node1, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data, "-allow-rejoin=${ALLOW_REJOIN:-false}"]
+    environment:
+      FAULT_DELAY_MS: "${FAULT_DELAY_MS:-0}"
+      FAULT_LOSS_RATE: "${FAULT_LOSS_RATE:-0}"
     ports: ["127.0.0.1:18081:8080"]
     volumes:
       - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"
       - node1-data:/data
   node2:
     <<: *node
-    command: [-id, node2, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    command: [-id, node2, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data, "-allow-rejoin=${ALLOW_REJOIN:-false}"]
+    environment:
+      FAULT_DELAY_MS: "${FAULT_DELAY_MS:-0}"
+      FAULT_LOSS_RATE: "${FAULT_LOSS_RATE:-0}"
     ports: ["127.0.0.1:18082:8080"]
     volumes:
       - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"
       - node2-data:/data
   node3:
     <<: *node
-    command: [-id, node3, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data]
+    command: [-id, node3, -run-id, "${RUN_ID:?Set RUN_ID to identify this execution}", -config, /etc/mc714/cluster.json, -listen, ":8080", -observer, "${OBSERVER_URL:-}", -data-dir, /data, "-allow-rejoin=${ALLOW_REJOIN:-false}"]
+    environment:
+      FAULT_DELAY_MS: "${FAULT_DELAY_MS:-0}"
+      FAULT_LOSS_RATE: "${FAULT_LOSS_RATE:-0}"
     ports: ["127.0.0.1:18083:8080"]
     volumes:
       - "${MEMBERSHIP_CONFIG:-./configs/compose.json}:/etc/mc714/cluster.json:ro"

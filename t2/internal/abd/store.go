@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 
 	"mc714-t2/internal/config"
@@ -42,16 +43,35 @@ type storedRegister struct {
 	Register  wire.Register `json:"register"`
 }
 
+// OpenOptions controls crash rejoin behavior for a replica directory.
+type OpenOptions struct {
+	// AllowRejoin removes a leftover .lock from a dead process and permits
+	// opening a previously started identity. The operator must ensure no other
+	// process still serves that directory.
+	AllowRejoin bool
+}
+
 // OpenStore exclusively opens a replica, initializing only an absent snapshot.
 // A leftover lock deliberately prevents crash recovery within the same run.
-func OpenStore(dir string, cluster config.Cluster) (_ *Store, err error) {
+func OpenStore(dir string, cluster config.Cluster) (*Store, error) {
+	return OpenStoreOpts(dir, cluster, OpenOptions{})
+}
+
+// OpenStoreOpts opens a replica with optional rejoin after crash-stop.
+func OpenStoreOpts(dir string, cluster config.Cluster, opts OpenOptions) (_ *Store, err error) {
 	if cluster.NodeID == "" || cluster.RunID == "" || cluster.ClusterID == "" || !cluster.HasMember(cluster.NodeID) {
 		return nil, errors.New("store requires a nonempty cluster identity and member node")
 	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, fmt.Errorf("%w: create store directory: %w", ErrUnavailable, err)
 	}
-	lock, err := os.OpenFile(filepath.Join(dir, ".lock"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	lockPath := filepath.Join(dir, ".lock")
+	if opts.AllowRejoin {
+		if removeErr := os.Remove(lockPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return nil, fmt.Errorf("%w: clear stale store lock: %w", ErrUnavailable, removeErr)
+		}
+	}
+	lock, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("%w: acquire store lock: %w", ErrUnavailable, err)
 	}
@@ -141,30 +161,45 @@ func (s *Store) Apply(register wire.Register) (wire.Register, error) {
 // MarkStarted permanently claims the protocol identity, independently of the
 // initialization lock. Close never removes this marker.
 func (s *Store) MarkStarted() error {
+	_, err := s.markStarted(false)
+	return err
+}
+
+// MarkStartedOrRejoin claims the identity, or accepts an existing marker when
+// rejoining after crash-stop under AllowRejoin.
+func (s *Store) MarkStartedOrRejoin(allowRejoin bool) (bool, error) {
+	return s.markStarted(allowRejoin)
+}
+
+func (s *Store) markStarted(allowRejoin bool) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if err := s.unavailable(); err != nil {
-		return err
+		return false, err
 	}
 	file, err := os.OpenFile(filepath.Join(s.dir, "started"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if errors.Is(err, os.ErrExist) {
-		return ErrAlreadyStarted
+		if allowRejoin {
+			return true, nil
+		}
+		return false, ErrAlreadyStarted
 	}
 	if err != nil {
-		return s.poison(fmt.Errorf("create started marker: %w", err))
+		return false, s.poison(fmt.Errorf("create started marker: %w", err))
 	}
 	err = errors.Join(file.Sync(), file.Close())
 	if err != nil {
-		return s.poison(fmt.Errorf("sync started marker: %w", err))
+		return false, s.poison(fmt.Errorf("sync started marker: %w", err))
 	}
 	if err := s.syncDirectory(); err != nil {
-		return s.poison(fmt.Errorf("persist started marker: %w", err))
+		return false, s.poison(fmt.Errorf("persist started marker: %w", err))
 	}
-	return nil
+	return false, nil
 }
 
-// Close permits inspection/reopen but never permits serving a started run again.
-// Only the inode acquired by this instance may be unlinked as its lock.
+// Close permits inspection/reopen but never permits serving a started run again
+// unless a later OpenStoreOpts uses AllowRejoin. Only the inode acquired by this
+// instance may be unlinked as its lock.
 func (s *Store) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -172,19 +207,28 @@ func (s *Store) Close() error {
 		return nil
 	}
 	s.closed = true
-	info, err := os.Lstat(filepath.Join(s.dir, ".lock"))
-	if err == nil {
-		if s.lockInfo != nil && os.SameFile(s.lockInfo, info) {
-			err = os.Remove(filepath.Join(s.dir, ".lock"))
-			if err == nil {
-				err = s.syncDirectory()
-			}
-		} else {
-			err = errors.New("store lock ownership changed")
+	lockPath := filepath.Join(s.dir, ".lock")
+	info, err := os.Lstat(lockPath)
+	owned := err == nil && s.lockInfo != nil && os.SameFile(s.lockInfo, info)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		closeErr := s.lock.Close()
+		return fmt.Errorf("%w: close store: %w", ErrUnavailable, errors.Join(err, closeErr))
+	}
+	if err == nil && !owned {
+		closeErr := s.lock.Close()
+		return fmt.Errorf("%w: close store: %w", ErrUnavailable, errors.Join(errors.New("store lock ownership changed"), closeErr))
+	}
+	// Close before unlink: Windows cannot remove an open file.
+	closeErr := s.lock.Close()
+	s.lock = nil
+	var removeErr error
+	if owned {
+		removeErr = os.Remove(lockPath)
+		if removeErr == nil {
+			removeErr = s.syncDirectory()
 		}
 	}
-	err = errors.Join(err, s.lock.Close())
-	if err != nil {
+	if err := errors.Join(closeErr, removeErr); err != nil {
 		return fmt.Errorf("%w: close store: %w", ErrUnavailable, err)
 	}
 	return nil
@@ -242,7 +286,14 @@ func (s *Store) syncDirectory() error {
 	if err != nil {
 		return err
 	}
-	return errors.Join(dir.Sync(), dir.Close())
+	syncErr := dir.Sync()
+	closeErr := dir.Close()
+	// Windows returns ERROR_INVALID_FUNCTION / access denied for directory
+	// Sync; rename durability still depends on the file Sync above.
+	if syncErr != nil && runtime.GOOS == "windows" {
+		syncErr = nil
+	}
+	return errors.Join(syncErr, closeErr)
 }
 
 func decodeStoredRegister(data []byte, cluster config.Cluster) (wire.Register, error) {
