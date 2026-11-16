@@ -4,10 +4,10 @@ FIGURES = $(addprefix figures/,$(addsuffix .pdf,ra_latency abd_latency throughpu
 .PHONY: all clean
 
 all: $(FIGURES)
-	latexmk -pdf -interaction=nonstopmode -halt-on-error relatorio_projeto2.tex
+	latexmk -pdf -interaction=nonstopmode -halt-on-error relatorio_projeto2_rodrigo_camargo.tex
 
 $(FIGURES) &: figures.py $(SUMMARY)
 	uv run --frozen --project ../analysis python figures.py
 
 clean:
-	latexmk -c relatorio_projeto2.tex
+	latexmk -c relatorio_projeto2_rodrigo_camargo.tex

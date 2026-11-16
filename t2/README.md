@@ -14,7 +14,7 @@ Projeto Go independente para Ricart–Agrawala e replicação por quórum ABD.
 - `internal/counter`: composição de RA e ABD para incremento fixo de +1, sem liberar a exclusão entre leitura e escrita.
 - `compose.yaml`: três participantes independentes na rede bridge do projeto, com portas publicadas somente em localhost. Essa rede permite saída para a Internet.
 
-RA, ABD e a aplicação de contador integrado estão implementados. Bônus: detector de falhas por heartbeat (`GET /fd/state`), reintegração opcional (`-allow-rejoin` / `ALLOW_REJOIN=true`), injeção de atraso/perda (`FAULT_DELAY_MS`, `FAULT_LOSS_RATE`) e overlay de nuvem (`compose.cloud.yaml`, `configs/cloud.json`). A campanha de referência e a análise estão concluídas: cem ensaios completos em [`data/campaigns/reference-bounded-20261021/analysis/REPORT.md`](data/campaigns/reference-bounded-20261021/analysis/REPORT.md). O [relatório IEEE](report/relatorio_projeto2.pdf) está atualizado. `/healthz` indica apenas que o processo HTTP responde; não comprova correção nem disponibilidade distribuída.
+RA, ABD e a aplicação de contador integrado estão implementados. Bônus: detector de falhas por heartbeat (`GET /fd/state`), reintegração opcional (`-allow-rejoin` / `ALLOW_REJOIN=true`), injeção de atraso/perda (`FAULT_DELAY_MS`, `FAULT_LOSS_RATE`) e overlay de nuvem (`compose.cloud.yaml`, `configs/cloud.json`). A campanha de referência e a análise estão concluídas: cem ensaios completos em [`data/campaigns/reference-bounded-20261021/analysis/REPORT.md`](data/campaigns/reference-bounded-20261021/analysis/REPORT.md). O [relatório IEEE](report/relatorio_projeto2_rodrigo_camargo.pdf) está atualizado. `/healthz` indica apenas que o processo HTTP responde; não comprova correção nem disponibilidade distribuída.
 
 ## Requisitos
 
@@ -342,8 +342,8 @@ Contêineres compartilham máquina/disco/escalonador; taxas oferecidas não mede
 
 ## Relatório IEEE
 
-- [PDF para revisão](report/relatorio_projeto2.pdf). Seis páginas no total, incluindo referências, em duas colunas IEEE e com organização visual baseada no T1.
-- [Fonte LaTeX](report/relatorio_projeto2.tex). Modelo do sistema, algoritmos, integração, correção, metodologia, duas tabelas compactas e seis figuras vetoriais. Os resultados se referem à campanha congelada, sem nova coleta.
+- [PDF para revisão](report/relatorio_projeto2_rodrigo_camargo.pdf). Seis páginas no total, incluindo referências, em duas colunas IEEE e com organização visual baseada no T1.
+- [Fonte LaTeX](report/relatorio_projeto2_rodrigo_camargo.tex). Modelo do sistema, algoritmos, integração, correção, metodologia, duas tabelas compactas e seis figuras vetoriais. Os resultados se referem à campanha congelada, sem nova coleta.
 
 ```sh
 make -C report
